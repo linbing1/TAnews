@@ -21,7 +21,7 @@ class TestLLMClientComplete:
         assert result == "response text"
         mock_post.assert_called_once()
         call_args = mock_post.call_args
-        assert "https://api.example.com/v1/chat/completions" == call_args[0][0]
+        assert "https://api.example.com/chat/completions" == call_args[0][0]
         assert call_args[1]["json"]["model"] == "test-model"
         assert call_args[1]["json"]["messages"][0]["content"] == "system prompt"
         assert call_args[1]["json"]["messages"][1]["content"] == "user message"
