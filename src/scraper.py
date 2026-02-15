@@ -7,6 +7,30 @@ from src.models import Article
 logger = logging.getLogger(__name__)
 
 
+def _convert_cookies(raw_cookies: list[dict]) -> list[dict]:
+    """Convert Cookie-Editor export format to Playwright format."""
+    converted = []
+    for c in raw_cookies:
+        cookie = {
+            "name": c["name"],
+            "value": c["value"],
+            "domain": c.get("domain", ""),
+            "path": c.get("path", "/"),
+        }
+        same_site = c.get("sameSite", "Lax")
+        if same_site in ("unspecified", "no_restriction"):
+            same_site = "None"
+        elif same_site not in ("Strict", "Lax", "None"):
+            same_site = "Lax"
+        cookie["sameSite"] = same_site
+
+        if "expirationDate" in c:
+            cookie["expires"] = c["expirationDate"]
+
+        converted.append(cookie)
+    return converted
+
+
 async def scrape_full_texts(
     articles: list[Article], cookies: list[dict]
 ) -> list[Article]:
@@ -38,7 +62,7 @@ async def _scrape_one(url: str, cookies: list[dict]) -> str:
         context = await browser.new_context()
 
         if cookies:
-            await context.add_cookies(cookies)
+            await context.add_cookies(_convert_cookies(cookies))
 
         page = await context.new_page()
         await page.goto(url, wait_until="domcontentloaded", timeout=30000)
