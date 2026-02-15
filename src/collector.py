@@ -1,11 +1,11 @@
 import logging
-from datetime import datetime, timezone, timedelta
-from email.utils import parsedate_to_datetime
+import re
+from datetime import datetime, timezone
 
-import feedparser
-import httpx
+from playwright.async_api import async_playwright
 
 from src.models import Article
+from src.scraper import _convert_cookies
 
 logger = logging.getLogger(__name__)
 
@@ -16,49 +16,65 @@ _PL_KEYWORDS = [
     "leicester", "liverpool", "manchester city", "manchester united",
     "man city", "man utd", "newcastle", "nottingham forest",
     "southampton", "tottenham", "spurs", "west ham", "wolves",
+    "salah", "haaland", "saka", "palmer", "son",
 ]
 
-
-def _is_premier_league(title: str, summary: str) -> bool:
-    text = (title + " " + summary).lower()
-    return any(kw in text for kw in _PL_KEYWORDS)
+_ARTICLE_URL_PATTERN = re.compile(r"/athletic/\d+/\d{4}/\d{2}/\d{2}/")
 
 
-def collect_articles(
-    rss_url: str, now: datetime | None = None, hours: int = 48
+def _is_premier_league(text: str) -> bool:
+    lower = text.lower()
+    return any(kw in lower for kw in _PL_KEYWORDS)
+
+
+async def collect_articles(
+    page_url: str, cookies: list[dict]
 ) -> list[Article]:
-    now = now or datetime.now(timezone.utc)
-    cutoff = now - timedelta(hours=hours)
+    """Scrape the Athletic PL listing page for article titles and links."""
+    pw_cookies = _convert_cookies(cookies) if cookies else []
 
-    resp = httpx.get(rss_url, timeout=30, follow_redirects=True)
-    resp.raise_for_status()
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        context = await browser.new_context()
+        if pw_cookies:
+            await context.add_cookies(pw_cookies)
 
-    feed = feedparser.parse(resp.text)
-    articles = []
+        page = await context.new_page()
+        await page.goto(page_url, wait_until="networkidle", timeout=60000)
 
-    for entry in feed.entries:
-        try:
-            published = parsedate_to_datetime(entry.get("published", ""))
-        except Exception:
-            continue
+        all_links = await page.query_selector_all("a[href]")
+        seen_urls = set()
+        articles = []
 
-        if published < cutoff:
-            continue
+        for link in all_links:
+            href = await link.get_attribute("href") or ""
+            if not _ARTICLE_URL_PATTERN.search(href):
+                continue
 
-        title = entry.get("title", "")
-        summary = entry.get("description", entry.get("summary", ""))
+            if not href.startswith("http"):
+                href = f"https://www.nytimes.com{href}"
 
-        if not _is_premier_league(title, summary):
-            continue
+            if href in seen_urls:
+                continue
+            seen_urls.add(href)
 
-        articles.append(
-            Article(
-                title=title,
-                link=entry.get("link", ""),
-                summary=summary,
-                published=published,
+            title = (await link.inner_text()).strip()
+            if not title or len(title) < 10:
+                continue
+
+            if not _is_premier_league(title):
+                continue
+
+            articles.append(
+                Article(
+                    title=title,
+                    link=href,
+                    summary=title,  # listing page has no separate summary
+                    published=datetime.now(timezone.utc),
+                )
             )
-        )
 
-    logger.info("Collected %d Premier League articles from RSS", len(articles))
+        await browser.close()
+
+    logger.info("Collected %d Premier League articles from listing page", len(articles))
     return articles

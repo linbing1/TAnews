@@ -4,8 +4,8 @@ import os
 
 def get_config():
     return {
-        "rss_url": os.environ.get(
-            "RSS_URL", "https://www.nytimes.com/athletic/rss/news/"
+        "page_url": os.environ.get(
+            "PAGE_URL", "https://www.nytimes.com/athletic/football/premier-league/"
         ),
         "athletic_cookies": json.loads(os.environ.get("ATHLETIC_COOKIES", "[]")),
         "llm_base_url": os.environ.get("LLM_BASE_URL", "https://open.bigmodel.cn/api/coding/paas/v4"),

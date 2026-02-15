@@ -10,13 +10,13 @@ class TestMainPipeline:
     @patch("main.analyze_articles")
     @patch("main.scrape_full_texts", new_callable=AsyncMock)
     @patch("main.rank_articles")
-    @patch("main.collect_articles")
+    @patch("main.collect_articles", new_callable=AsyncMock)
     @patch("main.get_config")
     def test_full_pipeline(
         self, mock_config, mock_collect, mock_rank, mock_scrape, mock_analyze, mock_notify
     ):
         mock_config.return_value = {
-            "rss_url": "http://rss",
+            "page_url": "http://page",
             "athletic_cookies": [],
             "llm_base_url": "https://api.example.com",
             "llm_api_key": "key",
@@ -52,11 +52,11 @@ class TestMainPipeline:
         mock_notify.assert_called_once()
 
     @patch("main.notify")
-    @patch("main.collect_articles")
+    @patch("main.collect_articles", new_callable=AsyncMock)
     @patch("main.get_config")
     def test_no_articles_sends_no_notification(self, mock_config, mock_collect, mock_notify):
         mock_config.return_value = {
-            "rss_url": "http://rss",
+            "page_url": "http://page",
             "athletic_cookies": [],
             "llm_base_url": "https://api.example.com",
             "llm_api_key": "key",

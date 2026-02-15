@@ -65,14 +65,13 @@ async def _scrape_one(url: str, cookies: list[dict]) -> str:
             await context.add_cookies(_convert_cookies(cookies))
 
         page = await context.new_page()
-        await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+        await page.goto(url, wait_until="networkidle", timeout=60000)
 
         selectors = [
-            "article .article-body",
-            "article [data-testid='article-body']",
-            "article .article-content",
-            ".article-body",
-            "article",
+            ".article-container",
+            "[class*='ArticleWrapper']",
+            "main article",
+            "main",
         ]
 
         text = ""

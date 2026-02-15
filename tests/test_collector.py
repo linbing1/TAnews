@@ -1,37 +1,72 @@
-from datetime import datetime, timezone
-from pathlib import Path
-from unittest.mock import patch, MagicMock
+import pytest
+from unittest.mock import AsyncMock, patch
 
-from src.collector import collect_articles
+from src.collector import collect_articles, _is_premier_league
 
-FIXTURE_PATH = Path(__file__).parent / "fixtures" / "sample_rss.xml"
+
+class TestIsPremierLeague:
+    def test_matches_team_names(self):
+        assert _is_premier_league("Arsenal win 3-0") is True
+        assert _is_premier_league("Liverpool beat Chelsea") is True
+        assert _is_premier_league("Premier League roundup") is True
+
+    def test_rejects_non_pl(self):
+        assert _is_premier_league("NBA Playoffs recap") is False
+        assert _is_premier_league("Winter Olympics day 9") is False
 
 
 class TestCollectArticles:
-    @patch("src.collector.httpx.get")
-    def test_filters_premier_league_articles(self, mock_get):
-        mock_resp = MagicMock()
-        mock_resp.text = FIXTURE_PATH.read_text()
-        mock_resp.raise_for_status = MagicMock()
-        mock_get.return_value = mock_resp
+    @pytest.mark.asyncio
+    @patch("src.collector.async_playwright")
+    async def test_filters_premier_league_articles(self, mock_pw):
+        mock_page = AsyncMock()
+        mock_context = AsyncMock()
+        mock_browser = AsyncMock()
+        mock_instance = AsyncMock()
 
-        now = datetime(2026, 2, 15, 12, 0, 0, tzinfo=timezone.utc)
-        articles = collect_articles("http://fake-rss", now=now)
+        mock_pw.return_value.__aenter__.return_value = mock_instance
+        mock_instance.chromium.launch.return_value = mock_browser
+        mock_browser.new_context.return_value = mock_context
+        mock_context.new_page.return_value = mock_page
 
-        titles = [a.title for a in articles]
+        async def make_link(href, text):
+            link = AsyncMock()
+            link.get_attribute.return_value = href
+            link.inner_text.return_value = text
+            return link
+
+        links = [
+            await make_link("/athletic/123/2026/02/15/arsenal-win/", "Arsenal dominate in 3-0 victory"),
+            await make_link("/athletic/456/2026/02/15/nba-recap/", "NBA Playoffs: Lakers win game"),
+            await make_link("/athletic/789/2026/02/15/salah-goal/", "Mohamed Salah scores stunning goal"),
+            await make_link("/athletic/nfl/", "NFL news"),
+        ]
+        mock_page.query_selector_all.return_value = links
+
+        articles = await collect_articles("http://fake-url", cookies=[])
+
         assert len(articles) == 2
-        assert any("Arsenal" in t for t in titles)
-        assert any("Manchester United" in t for t in titles)
-        assert not any("NBA" in t or "Lakers" in t for t in titles)
-        assert not any("old article" in t for t in titles)
+        titles = [a.title for a in articles]
+        assert "Arsenal dominate in 3-0 victory" in titles
+        assert "Mohamed Salah scores stunning goal" in titles
 
-    @patch("src.collector.httpx.get")
-    def test_returns_empty_on_no_matches(self, mock_get):
-        mock_resp = MagicMock()
-        mock_resp.text = '<?xml version="1.0"?><rss version="2.0"><channel><item><title>NBA news</title><link>http://x</link><description>Basketball</description><pubDate>Sun, 15 Feb 2026 06:00:00 GMT</pubDate></item></channel></rss>'
-        mock_resp.raise_for_status = MagicMock()
-        mock_get.return_value = mock_resp
+    @pytest.mark.asyncio
+    @patch("src.collector.async_playwright")
+    async def test_returns_empty_on_no_pl_articles(self, mock_pw):
+        mock_page = AsyncMock()
+        mock_context = AsyncMock()
+        mock_browser = AsyncMock()
+        mock_instance = AsyncMock()
 
-        now = datetime(2026, 2, 15, 12, 0, 0, tzinfo=timezone.utc)
-        articles = collect_articles("http://fake-rss", now=now)
+        mock_pw.return_value.__aenter__.return_value = mock_instance
+        mock_instance.chromium.launch.return_value = mock_browser
+        mock_browser.new_context.return_value = mock_context
+        mock_context.new_page.return_value = mock_page
+
+        link = AsyncMock()
+        link.get_attribute.return_value = "/athletic/123/2026/02/15/nba/"
+        link.inner_text.return_value = "NBA Playoffs recap and analysis"
+        mock_page.query_selector_all.return_value = [link]
+
+        articles = await collect_articles("http://fake-url", cookies=[])
         assert articles == []

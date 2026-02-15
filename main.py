@@ -20,9 +20,9 @@ logger = logging.getLogger(__name__)
 async def run():
     config = get_config()
 
-    # Step 1: Collect articles from RSS
-    logger.info("Step 1: Collecting articles from RSS...")
-    articles = collect_articles(config["rss_url"])
+    # Step 1: Collect articles from listing page
+    logger.info("Step 1: Collecting articles from listing page...")
+    articles = await collect_articles(config["page_url"], config["athletic_cookies"])
     if not articles:
         logger.info("No Premier League articles found. Exiting.")
         return
