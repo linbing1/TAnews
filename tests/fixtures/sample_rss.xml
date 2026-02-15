@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>The Athletic</title>
+    <item>
+      <title>Premier League title race: How Arsenal's midfield evolution changes everything</title>
+      <link>https://www.nytimes.com/athletic/12345/premier-league-title-race/</link>
+      <description>Arsenal's tactical shift in midfield has created a new dynamic in the title race.</description>
+      <pubDate>Sun, 15 Feb 2026 06:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>NBA Playoffs: Lakers dominate Game 3</title>
+      <link>https://www.nytimes.com/athletic/99999/nba-lakers/</link>
+      <description>The Lakers took a commanding lead in the series.</description>
+      <pubDate>Sun, 15 Feb 2026 05:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>Manchester United transfer: New signing imminent</title>
+      <link>https://www.nytimes.com/athletic/12346/man-utd-transfer/</link>
+      <description>United are close to completing a deal for a new midfielder.</description>
+      <pubDate>Sat, 14 Feb 2026 10:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>Premier League old article from last week</title>
+      <link>https://www.nytimes.com/athletic/11111/old-article/</link>
+      <description>This article is from last week.</description>
+      <pubDate>Sun, 08 Feb 2026 06:00:00 GMT</pubDate>
+    </item>
+  </channel>
+</rss>
