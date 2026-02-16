@@ -9,6 +9,7 @@ class Article:
     summary: str
     published: datetime
     full_text: str = ""
+    comment_count: int = 0
 
 
 @dataclass
