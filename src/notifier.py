@@ -11,10 +11,12 @@ _STARS = {1: "⭐", 2: "⭐⭐", 3: "⭐⭐⭐", 4: "⭐⭐⭐⭐", 5: "⭐⭐�
 
 
 def format_digest(
-    articles: list[AnalyzedArticle], today: date | None = None
+    articles: list[AnalyzedArticle],
+    today: date | None = None,
+    title_prefix: str = "英超每日精选",
 ) -> tuple[str, str]:
     today = today or date.today()
-    title = f"英超每日精选 - {today}"
+    title = f"{title_prefix} - {today}"
 
     sections = []
     for i, a in enumerate(articles, 1):
@@ -47,8 +49,9 @@ def notify(
     articles: list[AnalyzedArticle],
     serverchan_key: str,
     today: date | None = None,
+    title_prefix: str = "英超每日精选",
 ) -> bool:
-    title, body = format_digest(articles, today)
+    title, body = format_digest(articles, today, title_prefix=title_prefix)
 
     url = f"https://sctapi.ftqq.com/{serverchan_key}.send"
     resp = httpx.post(url, data={"title": title, "desp": body}, timeout=30)

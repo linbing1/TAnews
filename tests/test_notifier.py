@@ -27,6 +27,13 @@ class TestFormatDigest:
         assert "深度分析" in body
         assert "⭐⭐⭐⭐⭐" in body
 
+    def test_custom_title_prefix(self):
+        articles = [_make_analyzed()]
+        title, body = format_digest(articles, date(2026, 2, 16), title_prefix="英超热议文章")
+        assert "英超热议文章" in title
+        assert "2026-02-16" in title
+        assert "英超每日精选" not in title
+
 
 class TestNotify:
     @patch("src.notifier.httpx.post")
