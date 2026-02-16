@@ -1,7 +1,8 @@
 import pytest
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, patch
 
-from src.collector import collect_articles, _is_premier_league
+from src.collector import collect_articles, _is_premier_league, _parse_date_from_url
 
 
 class TestIsPremierLeague:
@@ -13,6 +14,18 @@ class TestIsPremierLeague:
     def test_rejects_non_pl(self):
         assert _is_premier_league("NBA Playoffs recap") is False
         assert _is_premier_league("Winter Olympics day 9") is False
+
+
+class TestParseDateFromUrl:
+    def test_extracts_date(self):
+        url = "/athletic/123/2026/02/15/arsenal-win/"
+        result = _parse_date_from_url(url)
+        assert result == datetime(2026, 2, 15, tzinfo=timezone.utc)
+
+    def test_returns_none_for_no_date(self):
+        url = "/athletic/news/"
+        result = _parse_date_from_url(url)
+        assert result is None
 
 
 class TestCollectArticles:

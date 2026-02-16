@@ -19,7 +19,15 @@ _PL_KEYWORDS = [
     "salah", "haaland", "saka", "palmer", "son",
 ]
 
-_ARTICLE_URL_PATTERN = re.compile(r"/athletic/\d+/\d{4}/\d{2}/\d{2}/")
+_ARTICLE_URL_PATTERN = re.compile(r"/athletic/\d+/(\d{4})/(\d{2})/(\d{2})/")
+
+
+def _parse_date_from_url(url: str) -> datetime | None:
+    m = _ARTICLE_URL_PATTERN.search(url)
+    if not m:
+        return None
+    y, mo, d = int(m.group(1)), int(m.group(2)), int(m.group(3))
+    return datetime(y, mo, d, tzinfo=timezone.utc)
 
 
 def _is_premier_league(text: str) -> bool:
@@ -65,12 +73,14 @@ async def collect_articles(
             if not _is_premier_league(title):
                 continue
 
+            pub_date = _parse_date_from_url(href) or datetime.now(timezone.utc)
+
             articles.append(
                 Article(
                     title=title,
                     link=href,
                     summary=title,  # listing page has no separate summary
-                    published=datetime.now(timezone.utc),
+                    published=pub_date,
                 )
             )
 
