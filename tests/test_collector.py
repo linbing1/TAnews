@@ -46,6 +46,9 @@ class TestCollectArticles:
             link = AsyncMock()
             link.get_attribute.return_value = href
             link.inner_text.return_value = text
+            parent = AsyncMock()
+            parent.inner_text.return_value = text
+            link.evaluate_handle.return_value = parent
             return link
 
         links = [
@@ -79,7 +82,39 @@ class TestCollectArticles:
         link = AsyncMock()
         link.get_attribute.return_value = "/athletic/123/2026/02/15/nba/"
         link.inner_text.return_value = "NBA Playoffs recap and analysis"
+        parent = AsyncMock()
+        parent.inner_text.return_value = "NBA Playoffs recap and analysis"
+        link.evaluate_handle.return_value = parent
         mock_page.query_selector_all.return_value = [link]
 
         articles = await collect_articles("http://fake-url", cookies=[])
         assert articles == []
+
+    @pytest.mark.asyncio
+    @patch("src.collector.async_playwright")
+    async def test_extracts_summary_from_parent(self, mock_pw):
+        mock_page = AsyncMock()
+        mock_context = AsyncMock()
+        mock_browser = AsyncMock()
+        mock_instance = AsyncMock()
+
+        mock_pw.return_value.__aenter__.return_value = mock_instance
+        mock_instance.chromium.launch.return_value = mock_browser
+        mock_browser.new_context.return_value = mock_context
+        mock_context.new_page.return_value = mock_page
+
+        # Simulate a link element whose parent has extra text
+        link = AsyncMock()
+        link.get_attribute.return_value = "/athletic/123/2026/02/15/arsenal-win/"
+        link.inner_text.return_value = "Arsenal dominate in 3-0 victory"
+
+        parent = AsyncMock()
+        parent.inner_text.return_value = "Arsenal dominate in 3-0 victory\nSaka scores twice as Gunners go top"
+        link.evaluate_handle.return_value = parent
+
+        mock_page.query_selector_all.return_value = [link]
+
+        articles = await collect_articles("http://fake-url", cookies=[])
+
+        assert len(articles) == 1
+        assert articles[0].summary == "Saka scores twice as Gunners go top"

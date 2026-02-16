@@ -75,11 +75,24 @@ async def collect_articles(
 
             pub_date = _parse_date_from_url(href) or datetime.now(timezone.utc)
 
+            # Try to extract summary from parent element
+            summary = title
+            try:
+                parent = await link.evaluate_handle("el => el.parentElement")
+                parent_text = (await parent.inner_text()).strip()
+                # Parent text often contains title + extra text; extract the extra
+                lines = [l.strip() for l in parent_text.split("\n") if l.strip()]
+                extra = [l for l in lines if l != title and len(l) > 15]
+                if extra:
+                    summary = extra[0]
+            except Exception:
+                pass
+
             articles.append(
                 Article(
                     title=title,
                     link=href,
-                    summary=title,  # listing page has no separate summary
+                    summary=summary,
                     published=pub_date,
                 )
             )
