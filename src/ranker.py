@@ -7,9 +7,10 @@ from src.models import Article
 logger = logging.getLogger(__name__)
 
 _SYSTEM_PROMPT = """You are a Premier League football news editor.
-Given a list of articles with their titles and summaries, select the {top_n} most important ones.
+Given a list of articles with their titles, summaries, and publish dates, select the {top_n} most important ones.
 
 Criteria for importance:
+- Freshness: strongly prefer articles published in the last 24 hours
 - Major match results and their implications
 - Transfer news with credible sources
 - Tactical/strategic analysis with depth
@@ -27,7 +28,9 @@ def rank_articles(
         return articles
 
     article_list = "\n".join(
-        f"[{i}] {a.title}\n    {a.summary}" for i, a in enumerate(articles)
+        f"[{i}] ({a.published.strftime('%Y-%m-%d')}) {a.title}"
+        + (f"\n    {a.summary}" if a.summary != a.title else "")
+        for i, a in enumerate(articles)
     )
 
     response = llm.complete(
@@ -37,6 +40,10 @@ def rank_articles(
 
     indices = _parse_indices(response, len(articles), top_n)
     result = [articles[i] for i in indices]
+    logger.debug("Ranker LLM prompt:\n%s", article_list)
+    logger.debug("Ranker LLM response: %s", response)
+    for a in result:
+        logger.info("  Selected: [%s] %s", a.published.strftime("%Y-%m-%d"), a.title)
     logger.info("Ranked %d articles, selected top %d", len(articles), len(result))
     return result
 

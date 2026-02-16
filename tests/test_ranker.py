@@ -41,3 +41,29 @@ class TestRankArticles:
         result = rank_articles(articles, mock_llm, top_n=5)
         assert len(result) == 3
         mock_llm.complete.assert_not_called()
+
+    def test_sends_date_and_summary_to_llm(self):
+        mock_llm = MagicMock()
+        mock_llm.complete.return_value = "0,1"
+        articles = [
+            Article(
+                title="Arsenal win",
+                link="https://example.com/1",
+                summary="Saka scores twice in dominant display",
+                published=datetime(2026, 2, 16, 10, 0, 0, tzinfo=timezone.utc),
+            ),
+            Article(
+                title="Liverpool draw",
+                link="https://example.com/2",
+                summary="Liverpool draw",
+                published=datetime(2026, 2, 15, 8, 0, 0, tzinfo=timezone.utc),
+            ),
+        ]
+        rank_articles(articles, mock_llm, top_n=1)
+
+        call_args = mock_llm.complete.call_args
+        user_prompt = call_args[0][1]
+        # Date should appear in the prompt
+        assert "2026-02-16" in user_prompt
+        # Non-duplicate summary should appear
+        assert "Saka scores twice" in user_prompt
