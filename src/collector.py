@@ -97,6 +97,10 @@ async def collect_articles(
                 )
             )
 
+        for a in articles:
+            logger.info("  [%s] %s", a.published.strftime("%Y-%m-%d"), a.title)
+            logger.debug("    link=%s summary=%s", a.link, a.summary)
+
         await browser.close()
 
     logger.info("Collected %d Premier League articles from listing page", len(articles))
