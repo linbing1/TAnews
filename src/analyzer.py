@@ -31,6 +31,7 @@ def analyze_articles(
     )
 
     response = llm.complete(_SYSTEM_PROMPT, article_texts)
+    logger.debug("Analyzer LLM response:\n%s", response[:500])
 
     try:
         text = response.strip()
@@ -61,4 +62,5 @@ def analyze_articles(
         except KeyError as e:
             logger.warning("Skipping article with missing field: %s", e)
 
+    logger.info("Analyzed %d articles successfully", len(result))
     return result

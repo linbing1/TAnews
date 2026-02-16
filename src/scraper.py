@@ -45,6 +45,7 @@ async def scrape_full_texts(
                 cookie_expired = True
             else:
                 article.full_text = text
+                logger.info("  Scraped %s: %d chars", article.title[:50], len(text))
         except Exception:
             logger.exception("Failed to scrape %s, falling back to summary", article.link)
             article.full_text = article.summary
