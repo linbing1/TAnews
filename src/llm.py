@@ -23,7 +23,7 @@ class LLMClient:
                     {"role": "user", "content": user},
                 ],
             },
-            timeout=120,
+            timeout=300,
         )
         resp.raise_for_status()
         return resp.json()["choices"][0]["message"]["content"]
