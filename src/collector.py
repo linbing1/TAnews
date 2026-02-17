@@ -48,7 +48,8 @@ async def collect_articles(
             await context.add_cookies(pw_cookies)
 
         page = await context.new_page()
-        await page.goto(page_url, wait_until="networkidle", timeout=60000)
+        await page.goto(page_url, wait_until="domcontentloaded", timeout=60000)
+        await page.wait_for_selector("a[href*='/athletic/']", timeout=15000)
 
         all_links = await page.query_selector_all("a[href]")
         seen_urls = set()

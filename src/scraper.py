@@ -66,7 +66,7 @@ async def _scrape_one(url: str, cookies: list[dict]) -> str:
             await context.add_cookies(_convert_cookies(cookies))
 
         page = await context.new_page()
-        await page.goto(url, wait_until="networkidle", timeout=60000)
+        await page.goto(url, wait_until="domcontentloaded", timeout=60000)
 
         selectors = [
             ".article-container",
@@ -77,6 +77,10 @@ async def _scrape_one(url: str, cookies: list[dict]) -> str:
 
         text = ""
         for selector in selectors:
+            try:
+                await page.wait_for_selector(selector, timeout=10000)
+            except Exception:
+                continue
             element = await page.query_selector(selector)
             if element:
                 text = await element.inner_text()
