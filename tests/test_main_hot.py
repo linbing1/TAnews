@@ -6,7 +6,7 @@ from src.models import Article, AnalyzedArticle
 
 
 class TestHotPipeline:
-    @patch("main_hot._save_step")
+    @patch("main_hot.save_step")
     @patch("main_hot.notify")
     @patch("main_hot.analyze_articles")
     @patch("main_hot.scrape_full_texts", new_callable=AsyncMock)
@@ -52,7 +52,7 @@ class TestHotPipeline:
         notify_kwargs = mock_notify.call_args
         assert notify_kwargs[1]["title_prefix"] == "英超热议文章"
 
-    @patch("main_hot._save_step")
+    @patch("main_hot.save_step")
     @patch("main_hot.notify")
     @patch("main_hot.collect_hot_articles", new_callable=AsyncMock)
     @patch("main_hot.get_config")

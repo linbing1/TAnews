@@ -1,18 +1,17 @@
 import asyncio
-import json
 import logging
 import os
 import sys
 from dataclasses import asdict
 from datetime import date
 
+from src.analyzer import analyze_articles
 from src.collector import collect_articles
+from src.config import get_config, save_step
+from src.llm import LLMClient
+from src.notifier import notify
 from src.ranker import rank_articles
 from src.scraper import scrape_full_texts
-from src.analyzer import analyze_articles
-from src.notifier import notify
-from src.llm import LLMClient
-from src.config import get_config
 
 logging.basicConfig(
     level=logging.INFO,
@@ -21,18 +20,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def _save_step(name: str, data, output_dir: str | None = None):
-    if output_dir is None:
-        output_dir = os.path.join("output", str(date.today()))
-    os.makedirs(output_dir, exist_ok=True)
-    path = os.path.join(output_dir, f"{name}.json")
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2, default=str)
-    logger.info("Saved %s to %s", name, path)
-
-
 async def run():
     config = get_config()
+    output_dir = os.path.join("output", str(date.today()))
 
     # Step 1: Collect articles from listing page
     logger.info("Step 1: Collecting articles from listing page...")
@@ -42,7 +32,7 @@ async def run():
         return
 
     logger.info("Found %d articles", len(articles))
-    _save_step("step1_collected", [asdict(a) for a in articles])
+    save_step("step1_collected", [asdict(a) for a in articles], output_dir)
 
     # Step 2: Rank and select top N
     llm = LLMClient(
@@ -53,19 +43,19 @@ async def run():
     logger.info("Step 2: Ranking articles...")
     top_articles = rank_articles(articles, llm, top_n=config["top_n"])
     logger.info("Selected top %d articles", len(top_articles))
-    _save_step("step2_ranked", [asdict(a) for a in top_articles])
+    save_step("step2_ranked", [asdict(a) for a in top_articles], output_dir)
 
     # Step 3: Scrape full texts
     logger.info("Step 3: Scraping full texts...")
     top_articles = await scrape_full_texts(top_articles, config["athletic_cookies"])
-    _save_step("step3_scraped", [
+    save_step("step3_scraped", [
         {**asdict(a), "full_text": a.full_text[:200] + "..."} for a in top_articles
-    ])
+    ], output_dir)
 
     # Step 4: Analyze with LLM
     logger.info("Step 4: Analyzing articles...")
     analyzed = analyze_articles(top_articles, llm)
-    _save_step("step4_analyzed", [asdict(a) for a in analyzed])
+    save_step("step4_analyzed", [asdict(a) for a in analyzed], output_dir)
     if not analyzed:
         logger.error("Analysis failed, no results to push")
         return

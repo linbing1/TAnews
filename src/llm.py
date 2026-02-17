@@ -12,10 +12,7 @@ class LLMClient:
     def complete(self, system: str, user: str) -> str:
         resp = httpx.post(
             f"{self.base_url.rstrip('/')}/chat/completions",
-            headers={
-                "Authorization": f"Bearer {self.api_key}",
-                "content-type": "application/json",
-            },
+            headers={"Authorization": f"Bearer {self.api_key}"},
             json={
                 "model": self.model,
                 "messages": [

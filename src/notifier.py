@@ -7,9 +7,6 @@ from src.models import AnalyzedArticle
 
 logger = logging.getLogger(__name__)
 
-_STARS = {1: "⭐", 2: "⭐⭐", 3: "⭐⭐⭐", 4: "⭐⭐⭐⭐", 5: "⭐⭐⭐⭐⭐"}
-
-
 def format_digest(
     articles: list[AnalyzedArticle],
     today: date | None = None,
@@ -20,7 +17,7 @@ def format_digest(
 
     sections = []
     for i, a in enumerate(articles, 1):
-        stars = _STARS.get(a.importance, "⭐" * a.importance)
+        stars = "⭐" * a.importance
         section = f"""## {i}. {a.title_cn}
 **原标题：** {a.title_original}
 **类型：** {a.article_type}

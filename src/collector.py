@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from playwright.async_api import async_playwright
 
 from src.models import Article
-from src.scraper import _convert_cookies
+from src.scraper import convert_cookies
 
 logger = logging.getLogger(__name__)
 
@@ -35,11 +35,37 @@ def _is_premier_league(text: str) -> bool:
     return any(kw in lower for kw in _PL_KEYWORDS)
 
 
+async def _extract_summary(link, title: str) -> str:
+    try:
+        parent = await link.evaluate_handle("el => el.parentElement")
+        parent_text = (await parent.inner_text()).strip()
+        lines = [line.strip() for line in parent_text.split("\n") if line.strip()]
+        extra = [line for line in lines if line != title and len(line) > 15]
+        if extra:
+            return extra[0]
+    except Exception:
+        pass
+    return title
+
+
+async def _extract_comment_count(link) -> int:
+    try:
+        nowrap = await link.query_selector("span[class*='Content_NoWrap']")
+        if nowrap:
+            nowrap_text = (await nowrap.inner_text()).strip()
+            match = re.search(r"\d+", nowrap_text)
+            if match:
+                return int(match.group())
+    except Exception:
+        pass
+    return 0
+
+
 async def collect_articles(
     page_url: str, cookies: list[dict]
 ) -> list[Article]:
     """Scrape the Athletic PL listing page for article titles and links."""
-    pw_cookies = _convert_cookies(cookies) if cookies else []
+    pw_cookies = convert_cookies(cookies) if cookies else []
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
@@ -76,30 +102,8 @@ async def collect_articles(
 
             pub_date = _parse_date_from_url(href) or datetime.now(timezone.utc)
 
-            # Try to extract summary from parent element
-            summary = title
-            try:
-                parent = await link.evaluate_handle("el => el.parentElement")
-                parent_text = (await parent.inner_text()).strip()
-                # Parent text often contains title + extra text; extract the extra
-                lines = [l.strip() for l in parent_text.split("\n") if l.strip()]
-                extra = [l for l in lines if l != title and len(l) > 15]
-                if extra:
-                    summary = extra[0]
-            except Exception:
-                pass
-
-            # Extract comment count from Content_NoWrap span inside the link
-            comment_count = 0
-            try:
-                nowrap = await link.query_selector("span[class*='Content_NoWrap']")
-                if nowrap:
-                    nowrap_text = (await nowrap.inner_text()).strip()
-                    digits = re.search(r"\d+", nowrap_text)
-                    if digits:
-                        comment_count = int(digits.group())
-            except Exception:
-                pass
+            summary = await _extract_summary(link, title)
+            comment_count = await _extract_comment_count(link)
 
             articles.append(
                 Article(

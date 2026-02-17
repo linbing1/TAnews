@@ -1,10 +1,13 @@
 import json
 import logging
+from dataclasses import fields
 
 from src.llm import LLMClient
-from src.models import Article, AnalyzedArticle
+from src.models import AnalyzedArticle, Article
 
 logger = logging.getLogger(__name__)
+
+_ANALYZED_FIELDS = {f.name for f in fields(AnalyzedArticle)}
 
 _SYSTEM_PROMPT = """你是一位资深英超足球记者和分析师。请对以下英超文章进行深度中文分析。
 
@@ -48,20 +51,9 @@ def analyze_articles(
     result = []
     for item in data:
         try:
-            result.append(
-                AnalyzedArticle(
-                    title_cn=item["title_cn"],
-                    title_original=item["title_original"],
-                    article_type=item["article_type"],
-                    importance=item["importance"],
-                    overview=item["overview"],
-                    detail=item["detail"],
-                    key_people_and_data=item["key_people_and_data"],
-                    impact=item["impact"],
-                    link=item["link"],
-                )
-            )
-        except KeyError as e:
+            filtered = {k: v for k, v in item.items() if k in _ANALYZED_FIELDS}
+            result.append(AnalyzedArticle(**filtered))
+        except TypeError as e:
             logger.warning("Skipping article with missing field: %s", e)
 
     logger.info("Analyzed %d articles successfully", len(result))

@@ -1,13 +1,13 @@
 import logging
 
-from playwright.async_api import async_playwright
+from playwright.async_api import async_playwright, Page
 
 from src.models import Article
 
 logger = logging.getLogger(__name__)
 
 
-def _convert_cookies(raw_cookies: list[dict]) -> list[dict]:
+def convert_cookies(raw_cookies: list[dict]) -> list[dict]:
     """Convert Cookie-Editor export format to Playwright format."""
     converted = []
     for c in raw_cookies:
@@ -31,61 +31,65 @@ def _convert_cookies(raw_cookies: list[dict]) -> list[dict]:
     return converted
 
 
+_ARTICLE_SELECTORS = [
+    ".article-container",
+    "[class*='ArticleWrapper']",
+    "main article",
+    "main",
+]
+
+
+async def _scrape_page(page: Page, url: str) -> str:
+    await page.goto(url, wait_until="domcontentloaded", timeout=60000)
+
+    text = ""
+    for selector in _ARTICLE_SELECTORS:
+        try:
+            await page.wait_for_selector(selector, timeout=10000)
+        except Exception:
+            continue
+        element = await page.query_selector(selector)
+        if element:
+            text = await element.inner_text()
+            if len(text) > 100:
+                break
+
+    return text.strip()
+
+
 async def scrape_full_texts(
     articles: list[Article], cookies: list[dict]
 ) -> list[Article]:
-    cookie_expired = False
+    pw_cookies = convert_cookies(cookies) if cookies else []
+    has_fallbacks = False
 
-    for article in articles:
-        try:
-            text = await _scrape_one(article.link, cookies)
-            if not text:
-                logger.warning("Empty text for %s, using summary", article.link)
-                article.full_text = article.summary
-                cookie_expired = True
-            else:
-                article.full_text = text
-                logger.info("  Scraped %s: %d chars", article.title[:50], len(text))
-        except Exception:
-            logger.exception("Failed to scrape %s, falling back to summary", article.link)
-            article.full_text = article.summary
-            cookie_expired = True
-
-    if cookie_expired:
-        logger.warning("Cookie may be expired - some articles fell back to summary")
-
-    return articles
-
-
-async def _scrape_one(url: str, cookies: list[dict]) -> str:
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         context = await browser.new_context()
+        if pw_cookies:
+            await context.add_cookies(pw_cookies)
 
-        if cookies:
-            await context.add_cookies(_convert_cookies(cookies))
-
-        page = await context.new_page()
-        await page.goto(url, wait_until="domcontentloaded", timeout=60000)
-
-        selectors = [
-            ".article-container",
-            "[class*='ArticleWrapper']",
-            "main article",
-            "main",
-        ]
-
-        text = ""
-        for selector in selectors:
+        for article in articles:
+            page = await context.new_page()
             try:
-                await page.wait_for_selector(selector, timeout=10000)
+                text = await _scrape_page(page, article.link)
+                if not text:
+                    logger.warning("Empty text for %s, using summary", article.link)
+                    article.full_text = article.summary
+                    has_fallbacks = True
+                else:
+                    article.full_text = text
+                    logger.info("  Scraped %s: %d chars", article.title[:50], len(text))
             except Exception:
-                continue
-            element = await page.query_selector(selector)
-            if element:
-                text = await element.inner_text()
-                if len(text) > 100:
-                    break
+                logger.exception("Failed to scrape %s, falling back to summary", article.link)
+                article.full_text = article.summary
+                has_fallbacks = True
+            finally:
+                await page.close()
 
         await browser.close()
-        return text.strip()
+
+    if has_fallbacks:
+        logger.warning("Some articles fell back to summary - cookies may be expired")
+
+    return articles
