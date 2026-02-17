@@ -31,7 +31,7 @@ class TestHotPipeline:
             comment_count=42,
         )
         mock_collect.return_value = [article]
-        mock_scrape.return_value = [article]
+        mock_scrape.return_value = ([article], False)
 
         analyzed = AnalyzedArticle(
             title_cn="测试", title_original="Test", article_type="新闻",

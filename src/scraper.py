@@ -92,4 +92,4 @@ async def scrape_full_texts(
     if has_fallbacks:
         logger.warning("Some articles fell back to summary - cookies may be expired")
 
-    return articles
+    return articles, has_fallbacks

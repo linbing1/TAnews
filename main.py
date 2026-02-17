@@ -47,7 +47,7 @@ async def run():
 
     # Step 3: Scrape full texts
     logger.info("Step 3: Scraping full texts...")
-    top_articles = await scrape_full_texts(top_articles, config["athletic_cookies"])
+    top_articles, has_fallbacks = await scrape_full_texts(top_articles, config["athletic_cookies"])
     save_step("step3_scraped", [
         {**asdict(a), "full_text": a.full_text[:200] + "..."} for a in top_articles
     ], output_dir)
@@ -62,7 +62,7 @@ async def run():
 
     # Step 5: Push to WeChat
     logger.info("Step 5: Pushing to WeChat...")
-    success = notify(analyzed, config["serverchan_key"])
+    success = notify(analyzed, config["serverchan_key"], has_fallbacks=has_fallbacks)
     if success:
         logger.info("Daily digest sent successfully!")
     else:

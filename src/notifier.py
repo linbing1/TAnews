@@ -11,6 +11,7 @@ def format_digest(
     articles: list[AnalyzedArticle],
     today: date | None = None,
     title_prefix: str = "英超每日精选",
+    has_fallbacks: bool = False,
 ) -> tuple[str, str]:
     today = today or date.today()
     title = f"{title_prefix} - {today}"
@@ -39,6 +40,10 @@ def format_digest(
         sections.append(section)
 
     body = f"# ⚽ {title}\n\n" + "\n\n---\n\n".join(sections)
+
+    if has_fallbacks:
+        body += "\n\n---\n\n> ⚠️ Cookie 可能失效，部分文章未能获取全文，请及时更新 ATHLETIC_COOKIES"
+
     return title, body
 
 
@@ -47,8 +52,9 @@ def notify(
     serverchan_key: str,
     today: date | None = None,
     title_prefix: str = "英超每日精选",
+    has_fallbacks: bool = False,
 ) -> bool:
-    title, body = format_digest(articles, today, title_prefix=title_prefix)
+    title, body = format_digest(articles, today, title_prefix=title_prefix, has_fallbacks=has_fallbacks)
 
     url = f"https://sctapi.ftqq.com/{serverchan_key}.send"
     resp = httpx.post(url, data={"title": title, "desp": body}, timeout=30)

@@ -50,3 +50,16 @@ class TestNotify:
         mock_post.assert_called_once()
         call_data = mock_post.call_args
         assert "test-key" in call_data[0][0]
+
+
+class TestFormatDigestFallbackWarning:
+    def test_no_warning_without_fallbacks(self):
+        articles = [_make_analyzed()]
+        _, body = format_digest(articles, date(2026, 2, 15), has_fallbacks=False)
+        assert "Cookie" not in body
+
+    def test_warning_appended_with_fallbacks(self):
+        articles = [_make_analyzed()]
+        _, body = format_digest(articles, date(2026, 2, 15), has_fallbacks=True)
+        assert "Cookie 可能失效" in body
+        assert "ATHLETIC_COOKIES" in body

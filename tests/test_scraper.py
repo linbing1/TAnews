@@ -31,8 +31,9 @@ class TestScrapeFullTexts:
         mock_scrape_page.return_value = "Full article content here."
 
         articles = [_make_article()]
-        result = await scrape_full_texts(articles, cookies=[])
+        result, has_fallbacks = await scrape_full_texts(articles, cookies=[])
         assert result[0].full_text == "Full article content here."
+        assert has_fallbacks is False
         mock_scrape_page.assert_called_once()
 
     @pytest.mark.asyncio
@@ -52,5 +53,6 @@ class TestScrapeFullTexts:
         mock_scrape_page.side_effect = Exception("Cookie expired")
 
         articles = [_make_article()]
-        result = await scrape_full_texts(articles, cookies=[])
+        result, has_fallbacks = await scrape_full_texts(articles, cookies=[])
         assert result[0].full_text == articles[0].summary
+        assert has_fallbacks is True
