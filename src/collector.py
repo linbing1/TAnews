@@ -49,7 +49,7 @@ async def collect_articles(
 
         page = await context.new_page()
         await page.goto(page_url, wait_until="domcontentloaded", timeout=60000)
-        await page.wait_for_selector("a[href*='/athletic/']", timeout=15000)
+        await page.wait_for_selector("a[href*='/athletic/']", state="attached", timeout=15000)
 
         all_links = await page.query_selector_all("a[href]")
         seen_urls = set()
