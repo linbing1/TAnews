@@ -88,17 +88,30 @@ async def collect_articles(
             except Exception:
                 pass
 
+            # Extract comment count from Content_NoWrap span inside the link
+            comment_count = 0
+            try:
+                nowrap = await link.query_selector("span[class*='Content_NoWrap']")
+                if nowrap:
+                    nowrap_text = (await nowrap.inner_text()).strip()
+                    digits = re.search(r"\d+", nowrap_text)
+                    if digits:
+                        comment_count = int(digits.group())
+            except Exception:
+                pass
+
             articles.append(
                 Article(
                     title=title,
                     link=href,
                     summary=summary,
                     published=pub_date,
+                    comment_count=comment_count,
                 )
             )
 
         for a in articles:
-            logger.info("  [%s] %s", a.published.strftime("%Y-%m-%d"), a.title)
+            logger.info("  [%s] %s (comments: %d)", a.published.strftime("%Y-%m-%d"), a.title, a.comment_count)
             logger.debug("    link=%s summary=%s", a.link, a.summary)
 
         await browser.close()
