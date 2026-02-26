@@ -9,6 +9,7 @@ class TestLLMClientComplete:
     @patch("src.llm.httpx.post")
     def test_complete_returns_response_text(self, mock_post):
         mock_response = MagicMock()
+        mock_response.status_code = 200
         mock_response.raise_for_status = MagicMock()
         mock_response.json.return_value = {
             "choices": [{"message": {"content": "response text"}}]
@@ -29,6 +30,8 @@ class TestLLMClientComplete:
     @patch("src.llm.httpx.post")
     def test_complete_raises_on_http_error(self, mock_post):
         mock_response = MagicMock()
+        mock_response.status_code = 400
+        mock_response.text = "Bad Request"
         mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
             "error", request=MagicMock(), response=MagicMock()
         )

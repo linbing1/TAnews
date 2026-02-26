@@ -32,6 +32,8 @@ class LLMClient:
                     },
                     timeout=300,
                 )
+                if resp.status_code >= 400:
+                    log.error("LLM API error %d: %s", resp.status_code, resp.text[:500])
                 resp.raise_for_status()
                 return resp.json()["choices"][0]["message"]["content"]
             except _RETRYABLE as e:
