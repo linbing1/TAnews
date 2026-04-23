@@ -4,12 +4,21 @@ import os
 import subprocess
 from datetime import date
 
-import edge_tts
+try:
+    import edge_tts
+except ImportError as exc:
+    edge_tts = None
+    _EDGE_TTS_IMPORT_ERROR = exc
+else:
+    _EDGE_TTS_IMPORT_ERROR = None
 
 logger = logging.getLogger(__name__)
 
 
 async def _synthesize_mp3(script: str, output_path: str, voice: str) -> None:
+    if edge_tts is None:
+        raise ModuleNotFoundError("edge_tts is required for audio synthesis") from _EDGE_TTS_IMPORT_ERROR
+
     logger.info("Synthesizing audio to %s", output_path)
     communicate = edge_tts.Communicate(script, voice)
     await communicate.save(output_path)

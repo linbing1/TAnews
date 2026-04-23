@@ -199,15 +199,17 @@ class TestMainPipeline:
         mock_rank.return_value = [article]
         mock_scrape.return_value = ([article], False)
         mock_analyze.return_value = [analyzed]
-        mock_build_audio_script.side_effect = RuntimeError("boom")
+        mock_build_audio_script.return_value = "audio script"
+        mock_synthesize.side_effect = RuntimeError("boom")
         mock_notify.return_value = True
 
         from main import run
         asyncio.run(run())
 
+        mock_build_audio_script.assert_called_once()
+        mock_synthesize.assert_awaited_once()
         mock_notify.assert_called_once()
         assert mock_notify.call_args.kwargs["audio_url"] is None
-        mock_synthesize.assert_not_awaited()
 
     @patch("main.save_step")
     @patch("main.notify")

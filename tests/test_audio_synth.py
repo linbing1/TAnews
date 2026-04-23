@@ -1,3 +1,5 @@
+import importlib
+import sys
 from datetime import date
 import subprocess
 from unittest.mock import AsyncMock, patch
@@ -10,6 +12,32 @@ from src.audio_synth import (
     prune_old_releases,
     synthesize_and_upload,
 )
+
+
+def test_audio_synth_module_imports_without_edge_tts_and_defers_failure(monkeypatch):
+    original_module = sys.modules.get("src.audio_synth")
+    monkeypatch.setitem(sys.modules, "edge_tts", None)
+    sys.modules.pop("src.audio_synth", None)
+
+    try:
+        module = importlib.import_module("src.audio_synth")
+        assert module.edge_tts is None
+
+        with pytest.raises(ModuleNotFoundError, match="edge_tts"):
+            import asyncio
+
+            asyncio.run(
+                module._synthesize_mp3(
+                    "hello world",
+                    "/tmp/digest.mp3",
+                    "zh-CN-YunjianNeural",
+                )
+            )
+    finally:
+        sys.modules.pop("src.audio_synth", None)
+        if original_module is not None:
+            sys.modules["src.audio_synth"] = original_module
+        monkeypatch.delitem(sys.modules, "edge_tts", raising=False)
 
 
 @pytest.mark.asyncio
