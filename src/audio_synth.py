@@ -1,6 +1,8 @@
 import json
 import logging
+import os
 import subprocess
+from datetime import date
 
 import edge_tts
 
@@ -107,3 +109,32 @@ def prune_old_releases(tag_prefix: str, keep: int, repo: str) -> None:
             )
         except subprocess.CalledProcessError as exc:
             logger.warning("Failed to delete old release %s: %s", tag, exc)
+
+
+async def synthesize_and_upload(
+    script: str,
+    today: date,
+    voice: str = "zh-CN-YunjianNeural",
+    tag_prefix: str = "audio-digest",
+    repo: str | None = None,
+    keep: int = 7,
+) -> str:
+    repo = repo or os.getenv("GITHUB_REPOSITORY")
+    if not repo:
+        raise ValueError("repo not provided and GITHUB_REPOSITORY env is empty")
+
+    tag = f"{tag_prefix}-{today.isoformat()}"
+    filename = f"{tag}.mp3"
+    mp3_path = f"/tmp/{filename}"
+
+    await _synthesize_mp3(script, mp3_path, voice)
+
+    title = f"Audio digest {tag}"
+    _create_or_update_release(tag, mp3_path, repo, title)
+
+    try:
+        prune_old_releases(tag_prefix, keep, repo)
+    except Exception as exc:
+        logger.warning("Unexpected prune_old_releases failure: %s", exc)
+
+    return f"https://github.com/{repo}/releases/download/{tag}/{filename}"

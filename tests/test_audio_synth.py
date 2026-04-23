@@ -1,3 +1,4 @@
+from datetime import date
 import subprocess
 from unittest.mock import AsyncMock, patch
 
@@ -7,6 +8,7 @@ from src.audio_synth import (
     _create_or_update_release,
     _synthesize_mp3,
     prune_old_releases,
+    synthesize_and_upload,
 )
 
 
@@ -201,4 +203,72 @@ def test_prune_old_releases_swallows_individual_delete_errors():
         prune_old_releases("audio-digest", keep=1, repo="owner/repo")
 
     assert mock_run.call_count == 3
+    mock_warning.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_synthesize_and_upload_returns_download_url_on_happy_path():
+    with (
+        patch("src.audio_synth._synthesize_mp3", new_callable=AsyncMock) as mock_synthesize,
+        patch("src.audio_synth._create_or_update_release") as mock_release,
+        patch("src.audio_synth.prune_old_releases") as mock_prune,
+        patch.dict("os.environ", {"GITHUB_REPOSITORY": "env-owner/env-repo"}, clear=True),
+    ):
+        result = await synthesize_and_upload("hello world", date(2026, 4, 23))
+
+    assert result == (
+        "https://github.com/env-owner/env-repo/releases/download/"
+        "audio-digest-2026-04-23/audio-digest-2026-04-23.mp3"
+    )
+    mock_synthesize.assert_awaited_once_with(
+        "hello world",
+        "/tmp/audio-digest-2026-04-23.mp3",
+        "zh-CN-YunjianNeural",
+    )
+    mock_release.assert_called_once_with(
+        "audio-digest-2026-04-23",
+        "/tmp/audio-digest-2026-04-23.mp3",
+        "env-owner/env-repo",
+        "Audio digest audio-digest-2026-04-23",
+    )
+    mock_prune.assert_called_once_with("audio-digest", 7, "env-owner/env-repo")
+
+
+@pytest.mark.asyncio
+async def test_synthesize_and_upload_explicit_repo_overrides_env():
+    with (
+        patch("src.audio_synth._synthesize_mp3", new_callable=AsyncMock),
+        patch("src.audio_synth._create_or_update_release") as mock_release,
+        patch("src.audio_synth.prune_old_releases"),
+        patch.dict("os.environ", {"GITHUB_REPOSITORY": "env-owner/env-repo"}, clear=True),
+    ):
+        result = await synthesize_and_upload(
+            "hello world",
+            date(2026, 4, 23),
+            repo="explicit-owner/explicit-repo",
+        )
+
+    assert result.startswith("https://github.com/explicit-owner/explicit-repo/")
+    assert mock_release.call_args.args[2] == "explicit-owner/explicit-repo"
+
+
+@pytest.mark.asyncio
+async def test_synthesize_and_upload_raises_when_repo_missing():
+    with patch.dict("os.environ", {}, clear=True):
+        with pytest.raises(ValueError, match="repo"):
+            await synthesize_and_upload("hello world", date(2026, 4, 23))
+
+
+@pytest.mark.asyncio
+async def test_synthesize_and_upload_ignores_prune_failure():
+    with (
+        patch("src.audio_synth._synthesize_mp3", new_callable=AsyncMock),
+        patch("src.audio_synth._create_or_update_release"),
+        patch("src.audio_synth.prune_old_releases", side_effect=RuntimeError("boom")),
+        patch("src.audio_synth.logger.warning") as mock_warning,
+        patch.dict("os.environ", {"GITHUB_REPOSITORY": "env-owner/env-repo"}, clear=True),
+    ):
+        result = await synthesize_and_upload("hello world", date(2026, 4, 23))
+
+    assert result.endswith("/audio-digest-2026-04-23.mp3")
     mock_warning.assert_called_once()
