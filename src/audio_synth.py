@@ -119,6 +119,9 @@ async def synthesize_and_upload(
     repo: str | None = None,
     keep: int = 7,
 ) -> str:
+    if keep < 1:
+        raise ValueError("keep must be at least 1")
+
     repo = repo or os.getenv("GITHUB_REPOSITORY")
     if not repo:
         raise ValueError("repo not provided and GITHUB_REPOSITORY env is empty")

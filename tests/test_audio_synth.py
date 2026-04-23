@@ -182,6 +182,23 @@ def test_prune_old_releases_swallows_list_error_with_warning():
     mock_warning.assert_called_once()
 
 
+def test_prune_old_releases_swallows_invalid_json_with_warning():
+    list_result = subprocess.CompletedProcess(
+        args=[],
+        returncode=0,
+        stdout="not json",
+        stderr="",
+    )
+
+    with (
+        patch("src.audio_synth.subprocess.run", return_value=list_result),
+        patch("src.audio_synth.logger.warning") as mock_warning,
+    ):
+        prune_old_releases("audio-digest", keep=2, repo="owner/repo")
+
+    mock_warning.assert_called_once()
+
+
 def test_prune_old_releases_swallows_individual_delete_errors():
     list_result = subprocess.CompletedProcess(
         args=[],
@@ -257,6 +274,17 @@ async def test_synthesize_and_upload_raises_when_repo_missing():
     with patch.dict("os.environ", {}, clear=True):
         with pytest.raises(ValueError, match="repo"):
             await synthesize_and_upload("hello world", date(2026, 4, 23))
+
+
+@pytest.mark.asyncio
+async def test_synthesize_and_upload_raises_when_keep_is_less_than_one():
+    with pytest.raises(ValueError, match="keep"):
+        await synthesize_and_upload(
+            "hello world",
+            date(2026, 4, 23),
+            repo="owner/repo",
+            keep=0,
+        )
 
 
 @pytest.mark.asyncio
