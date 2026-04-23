@@ -5,3 +5,4 @@ __pycache__/
 .env
 output/
 .worktrees/
+edge_tts_preview.mp3
