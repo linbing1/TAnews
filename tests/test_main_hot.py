@@ -23,6 +23,9 @@ class TestHotPipeline:
             "llm_model": "test-model",
             "serverchan_key": "sc-key",
             "top_n": 5,
+            "audio_enabled": False,
+            "audio_voice": "zh-CN-YunjianNeural",
+            "audio_keep_releases": 7,
         }
 
         article = Article(
@@ -67,6 +70,9 @@ class TestHotPipeline:
             "llm_model": "test-model",
             "serverchan_key": "sc-key",
             "top_n": 5,
+            "audio_enabled": False,
+            "audio_voice": "zh-CN-YunjianNeural",
+            "audio_keep_releases": 7,
         }
         mock_collect.return_value = []
 
@@ -74,3 +80,61 @@ class TestHotPipeline:
         asyncio.run(run())
 
         mock_notify.assert_not_called()
+
+    @patch("main_hot.save_step")
+    @patch("main_hot.notify")
+    @patch("main_hot.synthesize_and_upload", new_callable=AsyncMock, create=True)
+    @patch("main_hot.build_audio_script", create=True)
+    @patch("main_hot.analyze_articles")
+    @patch("main_hot.scrape_full_texts", new_callable=AsyncMock)
+    @patch("main_hot.collect_hot_articles", new_callable=AsyncMock)
+    @patch("main_hot.get_config")
+    def test_audio_enabled_sends_hot_audio_url(
+        self,
+        mock_config,
+        mock_collect,
+        mock_scrape,
+        mock_analyze,
+        mock_build_audio_script,
+        mock_synthesize,
+        mock_notify,
+        mock_save,
+    ):
+        mock_config.return_value = {
+            "page_url": "http://page",
+            "athletic_cookies": [],
+            "llm_base_url": "https://api.example.com",
+            "llm_api_key": "key",
+            "llm_model": "test-model",
+            "serverchan_key": "sc-key",
+            "top_n": 5,
+            "audio_enabled": True,
+            "audio_voice": "zh-CN-YunjianNeural",
+            "audio_keep_releases": 7,
+        }
+
+        article = Article(
+            title="Test", link="http://x", summary="S",
+            published=datetime(2026, 2, 16, tzinfo=timezone.utc),
+            comment_count=42,
+        )
+        analyzed = AnalyzedArticle(
+            title_cn="测试", title_original="Test", article_type="新闻",
+            importance=5, overview="概述", detail="详情",
+            key_people_and_data="数据", impact="影响", link="http://x",
+        )
+
+        mock_collect.return_value = [article]
+        mock_scrape.return_value = ([article], False)
+        mock_analyze.return_value = [analyzed]
+        mock_build_audio_script.return_value = "audio script"
+        mock_synthesize.return_value = "https://example.com/hot-audio.mp3"
+        mock_notify.return_value = True
+
+        from main_hot import run
+        asyncio.run(run())
+
+        mock_synthesize.assert_awaited_once()
+        assert mock_synthesize.await_args.kwargs["tag_prefix"] == "audio-hot"
+        assert mock_notify.call_args.kwargs["title_prefix"] == "英超热议文章"
+        assert mock_notify.call_args.kwargs["audio_url"] == "https://example.com/hot-audio.mp3"
