@@ -3,6 +3,7 @@ import logging
 import os
 import subprocess
 from datetime import date
+from urllib.parse import urlencode
 
 try:
     import edge_tts
@@ -22,6 +23,21 @@ async def _synthesize_mp3(script: str, output_path: str, voice: str) -> None:
     logger.info("Synthesizing audio to %s", output_path)
     communicate = edge_tts.Communicate(script, voice)
     await communicate.save(output_path)
+
+
+def _build_release_asset_url(repo: str, tag: str, filename: str) -> str:
+    return f"https://github.com/{repo}/releases/download/{tag}/{filename}"
+
+
+def _build_player_page_url(repo: str, asset_url: str, title: str) -> str:
+    owner, name = repo.split("/", 1)
+    if name.lower() == f"{owner.lower()}.github.io":
+        base_url = f"https://{owner}.github.io"
+    else:
+        base_url = f"https://{owner}.github.io/{name}"
+
+    query = urlencode({"src": asset_url, "title": title})
+    return f"{base_url}/audio-player.html?{query}"
 
 
 def _create_or_update_release(tag: str, asset_path: str, repo: str, title: str) -> None:
@@ -149,4 +165,5 @@ async def synthesize_and_upload(
     except Exception as exc:
         logger.warning("Unexpected prune_old_releases failure: %s", exc)
 
-    return f"https://github.com/{repo}/releases/download/{tag}/{filename}"
+    asset_url = _build_release_asset_url(repo, tag, filename)
+    return _build_player_page_url(repo, asset_url, title)

@@ -8,6 +8,8 @@ import pytest
 
 from src.audio_synth import (
     _create_or_update_release,
+    _build_player_page_url,
+    _build_release_asset_url,
     _synthesize_mp3,
     prune_old_releases,
     synthesize_and_upload,
@@ -38,6 +40,24 @@ def test_audio_synth_module_imports_without_edge_tts_and_defers_failure(monkeypa
         if original_module is not None:
             sys.modules["src.audio_synth"] = original_module
         monkeypatch.delitem(sys.modules, "edge_tts", raising=False)
+
+
+def test_build_player_page_url_uses_github_pages_with_encoded_asset_url():
+    asset_url = _build_release_asset_url(
+        "owner/repo",
+        "audio-digest-2026-04-23",
+        "audio-digest-2026-04-23.mp3",
+    )
+
+    result = _build_player_page_url(
+        "owner/repo",
+        asset_url,
+        "Audio digest audio-digest-2026-04-23",
+    )
+
+    assert result.startswith("https://owner.github.io/repo/audio-player.html?")
+    assert "src=https%3A%2F%2Fgithub.com%2Fowner%2Frepo%2Freleases%2Fdownload%2Faudio-digest-2026-04-23%2Faudio-digest-2026-04-23.mp3" in result
+    assert "title=Audio+digest+audio-digest-2026-04-23" in result
 
 
 @pytest.mark.asyncio
@@ -262,8 +282,10 @@ async def test_synthesize_and_upload_returns_download_url_on_happy_path():
         result = await synthesize_and_upload("hello world", date(2026, 4, 23))
 
     assert result == (
-        "https://github.com/env-owner/env-repo/releases/download/"
-        "audio-digest-2026-04-23/audio-digest-2026-04-23.mp3"
+        "https://env-owner.github.io/env-repo/audio-player.html?"
+        "src=https%3A%2F%2Fgithub.com%2Fenv-owner%2Fenv-repo%2Freleases%2Fdownload%2F"
+        "audio-digest-2026-04-23%2Faudio-digest-2026-04-23.mp3&"
+        "title=Audio+digest+audio-digest-2026-04-23"
     )
     mock_synthesize.assert_awaited_once_with(
         "hello world",
@@ -293,7 +315,7 @@ async def test_synthesize_and_upload_explicit_repo_overrides_env():
             repo="explicit-owner/explicit-repo",
         )
 
-    assert result.startswith("https://github.com/explicit-owner/explicit-repo/")
+    assert result.startswith("https://explicit-owner.github.io/explicit-repo/audio-player.html?")
     assert mock_release.call_args.args[2] == "explicit-owner/explicit-repo"
 
 
@@ -326,5 +348,6 @@ async def test_synthesize_and_upload_ignores_prune_failure():
     ):
         result = await synthesize_and_upload("hello world", date(2026, 4, 23))
 
-    assert result.endswith("/audio-digest-2026-04-23.mp3")
+    assert "audio-player.html?" in result
+    assert "audio-digest-2026-04-23.mp3" in result
     mock_warning.assert_called_once()
