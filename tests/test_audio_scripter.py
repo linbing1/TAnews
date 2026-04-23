@@ -28,7 +28,7 @@ class TestBuildAudioScript:
         with pytest.raises(ValueError, match="no articles"):
             build_audio_script([], llm, date(2026, 4, 23))
 
-    def test_calls_llm_with_expected_prompts(self):
+    def test_calls_llm_with_expected_prompt_contract(self):
         llm = MagicMock()
         llm.complete.return_value = "口播稿"
         article = _make_article()
@@ -37,16 +37,30 @@ class TestBuildAudioScript:
 
         llm.complete.assert_called_once()
         system_text, user_text = llm.complete.call_args[0]
-        assert "口播" in system_text or "播报" in system_text
+        assert "开场" in system_text
+        assert "转场" in system_text
+        assert "结尾" in system_text
+        assert "英文人名、队名和比分" in system_text
+        assert "不要使用 Markdown" in system_text
+        assert "URL" in system_text
+        assert "概述/详情/影响" in system_text
+        assert "1500-2500" in system_text
+        assert "汉字" in system_text
+        assert "title_prefix: 英超早报" in user_text
+        assert "year: 2026" in user_text
+        assert "month: 4" in user_text
+        assert "day: 23" in user_text
+        assert "articles:" in user_text
+        assert "- article 1" in user_text
         assert "title_cn: 阿森纳主导比赛" in user_text
         assert "title_original: Arsenal dominate" in user_text
+        assert "article_type: 深度分析" in user_text
+        assert "importance: 5" in user_text
         assert "overview: 阿森纳在比赛中展现了统治力。" in user_text
         assert "detail: 详细的战术分析内容。" in user_text
         assert "key_people_and_data: 萨卡：2球1助攻" in user_text
         assert "impact: 阿森纳升至榜首。" in user_text
-        assert "2026" in user_text
-        assert "4" in user_text
-        assert "23" in user_text
+        assert "link: https://example.com/1" in user_text
 
     def test_includes_title_prefix_in_user_prompt(self):
         llm = MagicMock()
@@ -76,6 +90,8 @@ class TestBuildAudioScript:
         build_audio_script(articles, llm, date(2026, 4, 23))
 
         user_text = llm.complete.call_args[0][1]
+        assert "- article 1" in user_text
+        assert "- article 2" in user_text
         assert "title_cn: 阿森纳主导比赛" in user_text
         assert "title_original: Arsenal dominate" in user_text
         assert "title_cn: 切尔西扳平" in user_text
