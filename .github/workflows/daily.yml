@@ -41,6 +41,9 @@ jobs:
         run: python main.py
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AUDIO_ENABLED: ${{ vars.AUDIO_ENABLED }}
+          AUDIO_VOICE: ${{ vars.AUDIO_VOICE }}
+          AUDIO_KEEP_RELEASES: ${{ vars.AUDIO_KEEP_RELEASES }}
           ATHLETIC_COOKIES: ${{ secrets.ATHLETIC_COOKIES }}
           LLM_BASE_URL: ${{ vars.LLM_BASE_URL }}
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
@@ -71,6 +74,9 @@ jobs:
         run: python main_hot.py
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AUDIO_ENABLED: ${{ vars.AUDIO_ENABLED }}
+          AUDIO_VOICE: ${{ vars.AUDIO_VOICE }}
+          AUDIO_KEEP_RELEASES: ${{ vars.AUDIO_KEEP_RELEASES }}
           ATHLETIC_COOKIES: ${{ secrets.ATHLETIC_COOKIES }}
           LLM_BASE_URL: ${{ vars.LLM_BASE_URL }}
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}

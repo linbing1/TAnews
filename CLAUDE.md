@@ -31,8 +31,8 @@ pytest tests/test_collector.py -k test_name  # single test
 ## Architecture
 
 ```
-main.py              # Digest pipeline: collect → rank → scrape → analyze → notify
-main_hot.py          # Hot pipeline: collect (sorted by comments) → scrape → analyze → notify
+main.py              # Digest pipeline: collect → rank → scrape → analyze → optional audio → notify
+main_hot.py          # Hot pipeline: collect (sorted by comments) → scrape → analyze → optional audio → notify
 src/
   config.py          # Loads env vars into config dict (no Pydantic)
   models.py          # Dataclasses: Article, AnalyzedArticle
