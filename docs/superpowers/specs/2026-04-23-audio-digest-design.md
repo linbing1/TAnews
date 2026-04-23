@@ -94,6 +94,7 @@ def synthesize_and_upload(
     voice: str = "zh-CN-YunjianNeural",
     tag_prefix: str = "audio-digest",
     repo: str | None = None,  # "owner/repo"，None 时从 GITHUB_REPOSITORY 读
+    keep: int = 7,             # 保留最近 N 个同前缀 release，其余自动清理
 ) -> str
 ```
 
@@ -101,9 +102,25 @@ def synthesize_and_upload(
 1. `edge_tts.Communicate(script, voice)` 合成到 `/tmp/{tag_prefix}-{today}.mp3`
 2. `gh release create {tag_prefix}-{today} /tmp/...mp3 --title "..." --notes "..."`
 3. 若 tag 已存在（同日重跑），回退到 `gh release upload {tag} /tmp/...mp3 --clobber`
-4. 返回 asset 下载 URL：`https://github.com/{repo}/releases/download/{tag}/{filename}`
+4. 调用 `prune_old_releases(tag_prefix, keep, repo)` 清理旧 release（失败仅记 warning，不影响主流程）
+5. 返回 asset 下载 URL：`https://github.com/{repo}/releases/download/{tag}/{filename}`
 
-**失败：** 抛异常。调用方捕获后降级。
+**失败：** 步骤 1-3 抛异常，调用方捕获后降级。步骤 4 失败不抛。
+
+### `prune_old_releases` 辅助函数（同文件）
+
+```python
+def prune_old_releases(tag_prefix: str, keep: int, repo: str) -> None
+```
+
+**行为：**
+1. `gh release list --repo {repo} --json tagName,createdAt --limit 100`
+2. 过滤出 `tagName` 以 `{tag_prefix}-` 开头的 release
+3. 按 `createdAt` 倒序，跳过最新的 `keep` 个
+4. 对剩余的逐个调用 `gh release delete {tag} --repo {repo} --cleanup-tag --yes`（连同 git tag 一并删除）
+5. 任何 `gh` 错误 → 记 `logger.warning`，不抛
+
+**保留策略：** `audio-digest` 和 `audio-hot` 各自独立计数（前缀区分）。默认 `keep=7`。
 
 ### `notifier.py` 改动
 
@@ -154,7 +171,8 @@ if config["audio_enabled"]:
 |---|---|---|---|
 | `AUDIO_ENABLED` | 否 | `true` | 应急开关，`false` 时跳过 4a+4b |
 | `AUDIO_VOICE` | 否 | `zh-CN-YunjianNeural` | Edge-TTS 声音 |
-| `GITHUB_TOKEN` | CI 自动注入 | - | `gh` CLI 上传 release |
+| `AUDIO_KEEP_RELEASES` | 否 | `7` | 每条流水线保留的最近 N 个 release，其余自动清理 |
+| `GITHUB_TOKEN` | CI 自动注入 | - | `gh` CLI 上传/删除 release |
 | `GITHUB_REPOSITORY` | CI 自动注入 | - | `owner/repo`，拼 URL 用 |
 
 现有环境变量不动。
@@ -183,6 +201,7 @@ Release tag 命名：
 | `audio_synth` — Edge-TTS 网络错误 | try/except 捕获，降级 |
 | `audio_synth` — `gh release create` tag 已存在 | 回退 `gh release upload --clobber` |
 | `audio_synth` — 其他 `gh` 错误 | 记 `logger.error`，降级 |
+| `audio_synth` — `prune_old_releases` 失败 | 记 `logger.warning`，不中断，下次运行再试 |
 | `notifier` 失败 | `sys.exit(1)`（现有行为，不变） |
 
 `AUDIO_ENABLED=false` 整条支路 skip，等价于今日行为。
@@ -203,8 +222,9 @@ Release tag 命名：
 
 **`tests/test_audio_synth.py`**
 - mock `edge_tts.Communicate`（不调网络，产假字节）
-- mock `subprocess.run`（`gh` 调用返回假 URL）
+- mock `subprocess.run`（`gh` 调用返回假 URL / 假 release 列表）
 - 断言：tag 命名、`--clobber` 回退路径、异常抛出
+- `prune_old_releases`：给 10 个假 release，`keep=7` 时恰好删 3 个最旧的；`gh list` 失败时不抛；prefix 不同的 release 不被误删
 
 **`tests/test_notifier.py`（扩充）**
 - 新 case：`audio_url` 非空时 Markdown 顶部有 `🎧` 行
