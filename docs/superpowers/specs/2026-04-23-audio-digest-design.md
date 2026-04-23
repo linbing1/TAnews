@@ -4,6 +4,12 @@
 **状态：** 待实施
 **影响流水线：** `main.py`（digest）、`main_hot.py`（hot）
 
+## 前置事实
+
+- 目标仓库：`linbing1/TAnews`，**private**
+- 实施前仓库：0 个 tag / 0 个 release（即 Releases 页将由本特性首次填充）
+- 音频 asset 链接仅登录后可访问（private 仓库特性），安全上可用于个人推送
+
 ## 背景与目标
 
 现有流水线把英超新闻的中文深度分析以 Markdown 形式通过 Server 酱推送到微信。用户希望**同时生成音频版本**，点开微信消息即可收听，适合通勤场景。
@@ -240,6 +246,15 @@ Release tag 命名：
 
 无。所有决策在本文档内明确。
 
+## 上线后人工操作清单
+
+**必做（避免邮件轰炸）：**
+- 打开 `https://github.com/linbing1/TAnews` → 右上角 **Watch** → **Custom** → **取消勾选 "Releases"**
+- 效果：每天两期 release 不再给自己发邮件；其他 Watch 事件（Issues、PR、Discussions）不受影响
+
+**建议：**
+- 本地若执行过 `git fetch --tags`，日后 `git tag` 会出现 `audio-digest-*` / `audio-hot-*`；介意可用 `git tag -d $(git tag -l 'audio-*')` 本地清理（远端由 `--cleanup-tag` 自动管）
+
 ## 里程碑
 
 1. 新增 `audio_scripter.py` + 测试 → 本地跑通口播稿生成
@@ -247,4 +262,5 @@ Release tag 命名：
 3. 修改 `notifier.py` + 回归测试 → 保证 `audio_url=None` 时输出不变
 4. 接入 `main.py` → 手动 dispatch workflow 验证端到端
 5. 接入 `main_hot.py` → 同上
-6. 更新 `CLAUDE.md` 和 `README`（若存在）记录新变量与流水线图
+6. 执行"上线后人工操作清单"
+7. 更新 `CLAUDE.md` 和 `README`（若存在）记录新变量与流水线图
