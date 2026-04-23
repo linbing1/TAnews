@@ -24,6 +24,9 @@ def get_config():
         "llm_model": os.environ.get("LLM_MODEL", "deepseek-chat"),
         "serverchan_key": os.environ.get("SERVERCHAN_KEY", ""),
         "top_n": int(os.environ.get("TOP_N", "5")),
+        "audio_enabled": os.environ.get("AUDIO_ENABLED", "true").lower() != "false",
+        "audio_voice": os.environ.get("AUDIO_VOICE", "zh-CN-YunjianNeural"),
+        "audio_keep_releases": int(os.environ.get("AUDIO_KEEP_RELEASES", "7")),
     }
 
 
