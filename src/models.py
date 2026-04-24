@@ -20,6 +20,4 @@ class AnalyzedArticle:
     importance: int
     overview: str
     detail: str
-    key_people_and_data: str
-    impact: str
     link: str

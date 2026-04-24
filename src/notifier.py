@@ -31,12 +31,6 @@ def format_digest(
 ### 详细内容
 {a.detail}
 
-### 关键人物与数据
-{a.key_people_and_data}
-
-### 影响与展望
-{a.impact}
-
 🔗 [阅读原文]({a.link})"""
         sections.append(section)
 

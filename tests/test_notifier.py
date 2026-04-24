@@ -10,9 +10,7 @@ def _make_analyzed() -> AnalyzedArticle:
         title_cn="阿森纳争冠分析", title_original="Arsenal title race analysis",
         article_type="深度分析", importance=5,
         overview="阿森纳在本赛季展现了强大的争冠实力。",
-        detail="详细的战术分析...",
-        key_people_and_data="萨卡、厄德高",
-        impact="对争冠形势产生重大影响。",
+        detail="**战术转折：** 详细的战术分析。",
         link="https://example.com/1",
     )
 
@@ -26,6 +24,24 @@ class TestFormatDigest:
         assert "阿森纳争冠分析" in body
         assert "深度分析" in body
         assert "⭐⭐⭐⭐⭐" in body
+        assert "### 文章概述" in body
+        assert "### 详细内容" in body
+        assert "关键人物与数据" not in body
+        assert "影响与展望" not in body
+
+    def test_preserves_bold_section_markers_in_detail(self):
+        article = AnalyzedArticle(
+            title_cn="标题", title_original="Title",
+            article_type="深度分析", importance=3,
+            overview="概述",
+            detail="**战术转折：** 前半场被动。\n\n> 教练说：'我们必须做出改变。'\n\n**数据与对比：** **xG 2.41**。",
+            link="https://example.com/1",
+        )
+
+        _, body = format_digest([article], date(2026, 2, 15))
+        assert "**战术转折：**" in body
+        assert "> 教练说：" in body
+        assert "**xG 2.41**" in body
 
     def test_custom_title_prefix(self):
         articles = [_make_analyzed()]
