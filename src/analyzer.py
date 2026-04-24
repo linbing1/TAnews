@@ -48,7 +48,7 @@ def analyze_articles(
         logger.info("Analyzing article %d/%d: %s (%d chars)", i, len(articles), a.title, len(user_text))
 
         try:
-            response = llm.complete(_SYSTEM_PROMPT, user_text)
+            response = llm.complete(_SYSTEM_PROMPT, user_text, operation="analyze_articles")
         except Exception:
             logger.exception("LLM request failed for article: %s", a.title)
             continue

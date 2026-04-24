@@ -1,6 +1,7 @@
 from unittest.mock import patch, MagicMock
 
 import httpx
+import pytest
 
 from src.llm import LLMClient
 
@@ -37,7 +38,101 @@ class TestLLMClientComplete:
         )
         mock_post.return_value = mock_response
 
-        import pytest
         client = LLMClient(base_url="https://api.example.com", api_key="k", model="m")
         with pytest.raises(httpx.HTTPStatusError):
             client.complete("s", "u")
+
+    @patch("src.llm.time.sleep")
+    @patch("src.llm.httpx.post")
+    def test_complete_retries_remote_protocol_error_then_succeeds(self, mock_post, mock_sleep):
+        success_response = MagicMock()
+        success_response.status_code = 200
+        success_response.raise_for_status = MagicMock()
+        success_response.json.return_value = {
+            "choices": [{"message": {"content": "response text"}}]
+        }
+        mock_post.side_effect = [
+            httpx.RemoteProtocolError("Server disconnected without sending a response."),
+            success_response,
+        ]
+
+        client = LLMClient(base_url="https://api.example.com", api_key="k", model="m")
+
+        assert client.complete("s", "u", operation="rank_articles") == "response text"
+        assert mock_post.call_count == 2
+        mock_sleep.assert_called_once()
+
+    @patch("src.llm.time.sleep")
+    @patch("src.llm.httpx.post")
+    def test_complete_retries_http_500_then_succeeds(self, mock_post, mock_sleep):
+        error_response = MagicMock()
+        error_response.status_code = 500
+        error_response.text = "Internal Server Error"
+        error_response.headers = {}
+        error_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "server error",
+            request=MagicMock(),
+            response=error_response,
+        )
+
+        success_response = MagicMock()
+        success_response.status_code = 200
+        success_response.raise_for_status = MagicMock()
+        success_response.json.return_value = {
+            "choices": [{"message": {"content": "response text"}}]
+        }
+        mock_post.side_effect = [error_response, success_response]
+
+        client = LLMClient(base_url="https://api.example.com", api_key="k", model="m")
+
+        assert client.complete("s", "u", operation="rank_articles") == "response text"
+        assert mock_post.call_count == 2
+        mock_sleep.assert_called_once()
+
+    @patch("src.llm.time.sleep")
+    @patch("src.llm.httpx.post")
+    def test_complete_uses_retry_after_for_http_429(self, mock_post, mock_sleep):
+        error_response = MagicMock()
+        error_response.status_code = 429
+        error_response.text = "Too Many Requests"
+        error_response.headers = {"Retry-After": "7"}
+        error_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "rate limited",
+            request=MagicMock(),
+            response=error_response,
+        )
+
+        success_response = MagicMock()
+        success_response.status_code = 200
+        success_response.raise_for_status = MagicMock()
+        success_response.json.return_value = {
+            "choices": [{"message": {"content": "response text"}}]
+        }
+        mock_post.side_effect = [error_response, success_response]
+
+        client = LLMClient(base_url="https://api.example.com", api_key="k", model="m")
+
+        assert client.complete("s", "u", operation="rank_articles") == "response text"
+        mock_sleep.assert_called_once_with(7.0)
+
+    @patch("src.llm.time.sleep")
+    @patch("src.llm.httpx.post")
+    def test_complete_does_not_retry_http_400(self, mock_post, mock_sleep):
+        error_response = MagicMock()
+        error_response.status_code = 400
+        error_response.text = "Bad Request"
+        error_response.headers = {}
+        error_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "bad request",
+            request=MagicMock(),
+            response=error_response,
+        )
+        mock_post.return_value = error_response
+
+        client = LLMClient(base_url="https://api.example.com", api_key="k", model="m")
+
+        with pytest.raises(httpx.HTTPStatusError):
+            client.complete("s", "u", operation="rank_articles")
+
+        mock_post.assert_called_once()
+        mock_sleep.assert_not_called()

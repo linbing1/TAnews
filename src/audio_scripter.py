@@ -53,4 +53,4 @@ def build_audio_script(
 
     user_text = "\n".join(sections)
     logger.info("Building audio script for %d articles", len(articles))
-    return llm.complete(_SYSTEM_PROMPT, user_text).strip()
+    return llm.complete(_SYSTEM_PROMPT, user_text, operation="build_audio_script").strip()
