@@ -31,11 +31,13 @@ pytest tests/test_collector.py -k test_name  # single test
 ## Architecture
 
 ```
-main.py              # Digest pipeline: collect → rank → scrape → analyze → optional audio → notify
-main_hot.py          # Hot pipeline: collect (sorted by comments) → scrape → analyze → optional audio → notify
+main.py              # Digest entry: calls run_pipeline(mode="digest")
+main_hot.py          # Hot entry: calls run_pipeline(mode="hot")
 src/
   config.py          # Loads env vars into config dict (no Pydantic)
+  pipeline.py        # Unified pipeline: mode routes collect/rank/title_prefix/tag_prefix differences
   models.py          # Dataclasses: Article, AnalyzedArticle
+  prompts/           # External LLM system prompts (analyzer.md, audio_scripter.md)
   collector.py       # Playwright scrapes listing page; filters by 24 PL keywords; extracts comment counts
   ranker.py          # LLM selects top N; skips LLM if articles ≤ top_n
   scraper.py         # Playwright + cookies; 4-selector fallback chain; returns (articles, has_fallbacks)
