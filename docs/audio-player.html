@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>音频播放器</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f1ea;
+      --panel: #fffdf8;
+      --ink: #1e2b24;
+      --muted: #6d746f;
+      --line: #d8d0c3;
+      --accent: #1e6a4a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background:
+        radial-gradient(circle at top right, rgba(30,106,74,0.12), transparent 30%),
+        linear-gradient(180deg, #f7f4ee 0%, var(--bg) 100%);
+      color: var(--ink);
+      font-family: "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
+    }
+    main {
+      width: min(720px, 100%);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 28px;
+      box-shadow: 0 20px 50px rgba(40, 42, 39, 0.08);
+    }
+    .eyebrow {
+      font-size: 14px;
+      color: var(--accent);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin: 0 0 12px;
+    }
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(28px, 5vw, 42px);
+      line-height: 1.12;
+    }
+    p {
+      margin: 0 0 18px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    audio {
+      width: 100%;
+      margin: 12px 0 20px;
+    }
+    .actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 20px;
+    }
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 0 18px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      text-decoration: none;
+      color: var(--ink);
+      background: #fff;
+      font-weight: 600;
+    }
+    .button.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    .error {
+      color: #b42318;
+      display: none;
+      margin-top: 16px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="eyebrow">Premier League Audio Digest</p>
+    <h1 id="title">音频播放器</h1>
+    <p>如果微信内打开不稳定，可以点“在浏览器中打开”或“下载音频”。</p>
+    <audio id="player" controls preload="metadata"></audio>
+    <div class="actions">
+      <a id="open-link" class="button primary" href="#" target="_blank" rel="noopener noreferrer">在浏览器中打开</a>
+      <a id="download-link" class="button" href="#" target="_blank" rel="noopener noreferrer">下载音频</a>
+    </div>
+    <p id="error" class="error">缺少音频地址，无法播放。</p>
+  </main>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const src = params.get("src");
+    const title = params.get("title") || "音频播放器";
+    const titleNode = document.getElementById("title");
+    const player = document.getElementById("player");
+    const openLink = document.getElementById("open-link");
+    const downloadLink = document.getElementById("download-link");
+    const errorNode = document.getElementById("error");
+
+    titleNode.textContent = title;
+
+    if (!src) {
+      player.style.display = "none";
+      openLink.style.display = "none";
+      downloadLink.style.display = "none";
+      errorNode.style.display = "block";
+    } else {
+      player.src = src;
+      openLink.href = src;
+      downloadLink.href = src;
+    }
+  </script>
+</body>
+</html>

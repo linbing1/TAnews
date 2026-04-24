@@ -12,6 +12,7 @@ def format_digest(
     today: date | None = None,
     title_prefix: str = "英超每日精选",
     has_fallbacks: bool = False,
+    audio_url: str | None = None,
 ) -> tuple[str, str]:
     today = today or date.today()
     title = f"{title_prefix} - {today}"
@@ -39,7 +40,10 @@ def format_digest(
 🔗 [阅读原文]({a.link})"""
         sections.append(section)
 
-    body = f"# ⚽ {title}\n\n" + "\n\n---\n\n".join(sections)
+    body = f"# ⚽ {title}\n\n"
+    if audio_url:
+        body += f"🎧 [点击收听音频版]({audio_url})\n\n"
+    body += "\n\n---\n\n".join(sections)
 
     if has_fallbacks:
         body += "\n\n---\n\n> ⚠️ Cookie 可能失效，部分文章未能获取全文，请及时更新 ATHLETIC_COOKIES"
@@ -53,8 +57,15 @@ def notify(
     today: date | None = None,
     title_prefix: str = "英超每日精选",
     has_fallbacks: bool = False,
+    audio_url: str | None = None,
 ) -> bool:
-    title, body = format_digest(articles, today, title_prefix=title_prefix, has_fallbacks=has_fallbacks)
+    title, body = format_digest(
+        articles,
+        today,
+        title_prefix=title_prefix,
+        has_fallbacks=has_fallbacks,
+        audio_url=audio_url,
+    )
 
     url = f"https://sctapi.ftqq.com/{serverchan_key}.send"
     resp = httpx.post(url, data={"title": title, "desp": body}, timeout=30)

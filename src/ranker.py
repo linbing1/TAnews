@@ -36,6 +36,7 @@ def rank_articles(
     response = llm.complete(
         _SYSTEM_PROMPT.format(top_n=top_n),
         f"Select the top {top_n} from these articles:\n\n{article_list}",
+        operation="rank_articles",
     )
 
     indices = _parse_indices(response, len(articles), top_n)

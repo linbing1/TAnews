@@ -34,6 +34,37 @@ class TestFormatDigest:
         assert "2026-02-16" in title
         assert "英超每日精选" not in title
 
+    def test_no_audio_line_when_audio_url_missing(self):
+        articles = [_make_analyzed()]
+        _, body = format_digest(articles, date(2026, 2, 15), audio_url=None)
+        assert "点击收听音频版" not in body
+
+    def test_audio_line_appears_below_title_before_first_section(self):
+        articles = [_make_analyzed()]
+        _, body = format_digest(
+            articles,
+            date(2026, 2, 15),
+            audio_url="https://example.com/audio.mp3",
+        )
+
+        title_line = "# ⚽ 英超每日精选 - 2026-02-15"
+        audio_line = "🎧 [点击收听音频版](https://example.com/audio.mp3)"
+        first_section = "## 1. 阿森纳争冠分析"
+
+        assert f"{title_line}\n\n{audio_line}\n\n{first_section}" in body
+
+    def test_audio_line_coexists_with_fallback_warning(self):
+        articles = [_make_analyzed()]
+        _, body = format_digest(
+            articles,
+            date(2026, 2, 15),
+            has_fallbacks=True,
+            audio_url="https://example.com/audio.mp3",
+        )
+
+        assert "🎧 [点击收听音频版](https://example.com/audio.mp3)" in body
+        assert "Cookie 可能失效" in body
+
 
 class TestNotify:
     @patch("src.notifier.httpx.post")

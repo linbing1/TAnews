@@ -6,6 +6,11 @@ from datetime import date
 logger = logging.getLogger(__name__)
 
 
+def _get_env_or_default(name: str, default: str) -> str:
+    value = os.environ.get(name)
+    return default if value == "" or value is None else value
+
+
 def get_config():
     cookie_raw = os.environ.get("ATHLETIC_COOKIES", "[]")
     try:
@@ -24,6 +29,9 @@ def get_config():
         "llm_model": os.environ.get("LLM_MODEL", "deepseek-chat"),
         "serverchan_key": os.environ.get("SERVERCHAN_KEY", ""),
         "top_n": int(os.environ.get("TOP_N", "5")),
+        "audio_enabled": _get_env_or_default("AUDIO_ENABLED", "true").lower() != "false",
+        "audio_voice": _get_env_or_default("AUDIO_VOICE", "zh-CN-YunjianNeural"),
+        "audio_keep_releases": int(_get_env_or_default("AUDIO_KEEP_RELEASES", "7")),
     }
 
 

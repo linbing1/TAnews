@@ -6,6 +6,8 @@ from dataclasses import asdict
 from datetime import date
 
 from src.analyzer import analyze_articles
+from src.audio_scripter import build_audio_script
+from src.audio_synth import synthesize_and_upload
 from src.collector import collect_articles
 from src.config import get_config, save_step
 from src.llm import LLMClient
@@ -60,9 +62,34 @@ async def run():
         logger.error("Analysis failed, no results to push")
         return
 
+    audio_url: str | None = None
+    if config["audio_enabled"]:
+        try:
+            logger.info("Step 4a: Generating audio script...")
+            script = build_audio_script(analyzed, llm, date.today())
+            save_step("step4a_script", {"script": script}, output_dir)
+
+            logger.info("Step 4b: Synthesizing and uploading audio...")
+            audio_url = await synthesize_and_upload(
+                script,
+                date.today(),
+                voice=config["audio_voice"],
+                tag_prefix="audio-digest",
+                keep=config["audio_keep_releases"],
+            )
+            save_step("step4b_audio", {"url": audio_url}, output_dir)
+        except Exception as e:
+            logger.error("Audio pipeline failed, falling back to text-only: %s", e)
+            audio_url = None
+
     # Step 5: Push to WeChat
     logger.info("Step 5: Pushing to WeChat...")
-    success = notify(analyzed, config["serverchan_key"], has_fallbacks=has_fallbacks)
+    success = notify(
+        analyzed,
+        config["serverchan_key"],
+        has_fallbacks=has_fallbacks,
+        audio_url=audio_url,
+    )
     if success:
         logger.info("Daily digest sent successfully!")
     else:
