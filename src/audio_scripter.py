@@ -1,21 +1,13 @@
 import logging
 from datetime import date
+from pathlib import Path
 
 from src.llm import LLMClient
 from src.models import AnalyzedArticle
 
 logger = logging.getLogger(__name__)
 
-_SYSTEM_PROMPT = """
-你是一名中文足球音频节目撰稿人。请根据给定资讯整理成自然、流畅、适合直接口播的中文播报稿。
-
-要求：
-1. 包含开场、转场和结尾。
-2. 保留英文人名、队名、赛事名和比分，尤其是英文人名、队名和比分，不要误译或省略。
-3. 不要使用 Markdown、项目符号或 URL，避免“概述/详情/影响”等书面标签。
-4. 语言要像主播在说话，简洁自然，不要写成文章或报告。
-5. 总长度控制在 1500-2500 个汉字。
-""".strip()
+_SYSTEM_PROMPT = (Path(__file__).parent / "prompts" / "audio_scripter.md").read_text(encoding="utf-8")
 
 
 def build_audio_script(
@@ -45,8 +37,6 @@ def build_audio_script(
                 f"importance: {article.importance}",
                 f"overview: {article.overview}",
                 f"detail: {article.detail}",
-                f"key_people_and_data: {article.key_people_and_data}",
-                f"impact: {article.impact}",
                 f"link: {article.link}",
             ]
         )

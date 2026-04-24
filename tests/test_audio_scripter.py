@@ -15,8 +15,6 @@ def _make_article(title_cn="阿森纳主导比赛", title_original="Arsenal domi
         importance=5,
         overview="阿森纳在比赛中展现了统治力。",
         detail="详细的战术分析内容。",
-        key_people_and_data="萨卡：2球1助攻",
-        impact="阿森纳升至榜首。",
         link="https://example.com/1",
     )
 
@@ -40,12 +38,9 @@ class TestBuildAudioScript:
         assert "开场" in system_text
         assert "转场" in system_text
         assert "结尾" in system_text
-        assert "英文人名、队名和比分" in system_text
+        assert "每篇文章 500-700" in system_text
+        assert "保留英文人名" in system_text
         assert "不要使用 Markdown" in system_text
-        assert "URL" in system_text
-        assert "概述/详情/影响" in system_text
-        assert "1500-2500" in system_text
-        assert "汉字" in system_text
         assert "title_prefix: 英超早报" in user_text
         assert "year: 2026" in user_text
         assert "month: 4" in user_text
@@ -58,9 +53,9 @@ class TestBuildAudioScript:
         assert "importance: 5" in user_text
         assert "overview: 阿森纳在比赛中展现了统治力。" in user_text
         assert "detail: 详细的战术分析内容。" in user_text
-        assert "key_people_and_data: 萨卡：2球1助攻" in user_text
-        assert "impact: 阿森纳升至榜首。" in user_text
         assert "link: https://example.com/1" in user_text
+        assert "key_people_and_data" not in user_text
+        assert "impact" not in user_text
 
     def test_includes_title_prefix_in_user_prompt(self):
         llm = MagicMock()
