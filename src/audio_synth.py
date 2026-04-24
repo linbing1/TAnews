@@ -18,12 +18,23 @@ _RELEASES_PAGE_SIZE = 100
 _GH_TIMEOUT = 120
 
 
+def _strip_markdown(text: str) -> str:
+    import re
+    text = re.sub(r"\*{1,3}([^*]+)\*{1,3}", r"\1", text)  # bold/italic
+    text = re.sub(r"_{1,3}([^_]+)_{1,3}", r"\1", text)     # underscore bold/italic
+    text = re.sub(r"`([^`]+)`", r"\1", text)                # inline code
+    text = re.sub(r"#{1,6}\s+", "", text)                   # headings
+    text = re.sub(r"^\s*[-*+]\s+", "", text, flags=re.MULTILINE)  # list bullets
+    return text
+
+
 async def _synthesize_mp3(script: str, output_path: str, voice: str) -> None:
     if edge_tts is None:
         raise ModuleNotFoundError("edge_tts is required for audio synthesis") from _EDGE_TTS_IMPORT_ERROR
 
+    clean_script = _strip_markdown(script)
     logger.info("Synthesizing audio to %s", output_path)
-    communicate = edge_tts.Communicate(script, voice)
+    communicate = edge_tts.Communicate(clean_script, voice)
     await communicate.save(output_path)
 
 
