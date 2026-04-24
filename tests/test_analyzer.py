@@ -22,9 +22,7 @@ class TestAnalyzeArticles:
             "article_type": "深度分析",
             "importance": 5,
             "overview": "阿森纳在比赛中展现了统治力。",
-            "detail": "详细的战术分析内容...",
-            "key_people_and_data": "萨卡：2球1助攻",
-            "impact": "阿森纳升至榜首。",
+            "detail": "**战术转折：** 详细的战术分析内容。",
             "link": "https://example.com/1",
         }])
         articles = [_make_article()]
@@ -32,6 +30,8 @@ class TestAnalyzeArticles:
         assert len(result) == 1
         assert result[0].title_cn == "阿森纳主导比赛"
         assert result[0].importance == 5
+        assert not hasattr(result[0], "key_people_and_data")
+        assert not hasattr(result[0], "impact")
 
     def test_handles_malformed_llm_response(self):
         mock_llm = MagicMock()
@@ -39,3 +39,13 @@ class TestAnalyzeArticles:
         articles = [_make_article()]
         result = analyze_articles(articles, mock_llm)
         assert result == []
+
+
+class TestAnalyzerPrompt:
+    def test_system_prompt_loaded_from_file(self):
+        from src.analyzer import _SYSTEM_PROMPT
+
+        assert "**加粗段首：**" in _SYSTEM_PROMPT
+        assert "保留英文原文" in _SYSTEM_PROMPT
+        assert "key_people_and_data" not in _SYSTEM_PROMPT
+        assert "impact" not in _SYSTEM_PROMPT
