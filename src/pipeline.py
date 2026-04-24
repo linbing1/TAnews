@@ -37,11 +37,8 @@ async def run_pipeline(*, mode: Literal["digest", "hot"], config: dict) -> None:
     opts = _MODE_DEFAULTS[mode]
 
     today = beijing_today()
-    output_parts = ["output"]
-    if opts["output_subdir"]:
-        output_parts.append(opts["output_subdir"])
-    output_parts.append(str(today))
-    output_dir = os.path.join(*output_parts)
+    subdir = opts["output_subdir"]
+    output_dir = os.path.join("output", subdir, str(today)) if subdir else os.path.join("output", str(today))
 
     logger.info("Step 1: Collecting articles (mode=%s)...", mode)
     if mode == "digest":
@@ -102,7 +99,6 @@ async def run_pipeline(*, mode: Literal["digest", "hot"], config: dict) -> None:
             save_step("step4b_audio", {"url": audio_url}, output_dir)
         except Exception as e:
             logger.error("Audio pipeline failed, falling back to text-only: %s", e)
-            audio_url = None
 
     logger.info("Step 5: Pushing to WeChat...")
     success = notify(

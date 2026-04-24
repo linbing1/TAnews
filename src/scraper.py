@@ -45,7 +45,7 @@ async def _scrape_page(page: Page, url: str) -> str:
     text = ""
     for selector in _ARTICLE_SELECTORS:
         try:
-            await page.wait_for_selector(selector, timeout=10000)
+            await page.wait_for_selector(selector, timeout=3000)
         except Exception:
             continue
         element = await page.query_selector(selector)
@@ -59,8 +59,8 @@ async def _scrape_page(page: Page, url: str) -> str:
 
 async def scrape_full_texts(
     articles: list[Article], cookies: list[dict]
-) -> list[Article]:
-    pw_cookies = convert_cookies(cookies) if cookies else []
+) -> tuple[list[Article], bool]:
+    pw_cookies = convert_cookies(cookies)
     has_fallbacks = False
 
     async with async_playwright() as p:

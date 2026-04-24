@@ -22,15 +22,15 @@ def get_config():
         cookies = []
 
     return {
-        "page_url": os.environ.get(
+        "page_url": _get_env_or_default(
             "PAGE_URL", "https://www.nytimes.com/athletic/football/premier-league/"
         ),
         "athletic_cookies": cookies,
-        "llm_base_url": os.environ.get("LLM_BASE_URL", "https://open.bigmodel.cn/api/coding/paas/v4"),
+        "llm_base_url": _get_env_or_default("LLM_BASE_URL", "https://open.bigmodel.cn/api/coding/paas/v4"),
         "llm_api_key": os.environ.get("LLM_API_KEY", ""),
-        "llm_model": os.environ.get("LLM_MODEL", "deepseek-chat"),
+        "llm_model": _get_env_or_default("LLM_MODEL", "deepseek-chat"),
         "serverchan_key": os.environ.get("SERVERCHAN_KEY", ""),
-        "top_n": int(os.environ.get("TOP_N", "5")),
+        "top_n": int(_get_env_or_default("TOP_N", "5")),
         "audio_enabled": _get_env_or_default("AUDIO_ENABLED", "true").lower() != "false",
         "audio_voice": _get_env_or_default("AUDIO_VOICE", "zh-CN-YunjianNeural"),
         "audio_keep_releases": int(_get_env_or_default("AUDIO_KEEP_RELEASES", "7")),

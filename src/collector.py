@@ -65,7 +65,7 @@ async def collect_articles(
     page_url: str, cookies: list[dict]
 ) -> list[Article]:
     """Scrape the Athletic PL listing page for article titles and links."""
-    pw_cookies = convert_cookies(cookies) if cookies else []
+    pw_cookies = convert_cookies(cookies)
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)

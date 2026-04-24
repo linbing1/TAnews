@@ -3,9 +3,11 @@ from datetime import date
 
 import httpx
 
+from src.config import beijing_today
 from src.models import AnalyzedArticle
 
 logger = logging.getLogger(__name__)
+
 
 def format_digest(
     articles: list[AnalyzedArticle],
@@ -14,7 +16,7 @@ def format_digest(
     has_fallbacks: bool = False,
     audio_url: str | None = None,
 ) -> tuple[str, str]:
-    today = today or date.today()
+    today = today or beijing_today()
     title = f"{title_prefix} - {today}"
 
     sections = []
