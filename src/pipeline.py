@@ -2,14 +2,13 @@ import logging
 import os
 import sys
 from dataclasses import asdict
-from datetime import date
 from typing import Literal
 
 from src.analyzer import analyze_articles
 from src.audio_scripter import build_audio_script
 from src.audio_synth import synthesize_and_upload
 from src.collector import collect_articles
-from src.config import save_step
+from src.config import beijing_today, save_step
 from src.hot_collector import collect_hot_articles
 from src.llm import LLMClient
 from src.notifier import notify
@@ -37,7 +36,7 @@ async def run_pipeline(*, mode: Literal["digest", "hot"], config: dict) -> None:
         raise ValueError(f"unknown mode: {mode}")
     opts = _MODE_DEFAULTS[mode]
 
-    today = date.today()
+    today = beijing_today()
     output_parts = ["output"]
     if opts["output_subdir"]:
         output_parts.append(opts["output_subdir"])

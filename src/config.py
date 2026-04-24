@@ -1,9 +1,11 @@
 import json
 import logging
 import os
-from datetime import date
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
 logger = logging.getLogger(__name__)
+_BEIJING_TZ = ZoneInfo("Asia/Shanghai")
 
 
 def _get_env_or_default(name: str, default: str) -> str:
@@ -35,9 +37,13 @@ def get_config():
     }
 
 
+def beijing_today() -> date:
+    return datetime.now(_BEIJING_TZ).date()
+
+
 def save_step(name: str, data, output_dir: str | None = None):
     if output_dir is None:
-        output_dir = os.path.join("output", str(date.today()))
+        output_dir = os.path.join("output", str(beijing_today()))
     os.makedirs(output_dir, exist_ok=True)
     path = os.path.join(output_dir, f"{name}.json")
     with open(path, "w", encoding="utf-8") as f:

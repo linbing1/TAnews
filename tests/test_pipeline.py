@@ -1,6 +1,7 @@
 import asyncio
 from unittest.mock import patch, AsyncMock
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
+import os
 
 from src.models import Article, AnalyzedArticle
 
@@ -179,3 +180,44 @@ class TestRunPipelineAudio:
         asyncio.run(run_pipeline(mode="digest", config=_make_config(audio_enabled=True)))
 
         assert mock_notify.call_args.kwargs["audio_url"] is None
+
+    @patch("src.pipeline.beijing_today")
+    @patch("src.pipeline.save_step")
+    @patch("src.pipeline.notify")
+    @patch("src.pipeline.synthesize_and_upload", new_callable=AsyncMock)
+    @patch("src.pipeline.build_audio_script")
+    @patch("src.pipeline.analyze_articles")
+    @patch("src.pipeline.scrape_full_texts", new_callable=AsyncMock)
+    @patch("src.pipeline.rank_articles")
+    @patch("src.pipeline.collect_articles", new_callable=AsyncMock)
+    def test_uses_beijing_date_for_output_audio_and_notify(
+        self,
+        mock_collect,
+        mock_rank,
+        mock_scrape,
+        mock_analyze,
+        mock_script,
+        mock_synth,
+        mock_notify,
+        mock_save,
+        mock_beijing_today,
+    ):
+        from src.pipeline import run_pipeline
+
+        fixed_today = date(2026, 2, 16)
+        mock_beijing_today.return_value = fixed_today
+        mock_collect.return_value = [_make_article()]
+        mock_rank.return_value = [_make_article()]
+        mock_scrape.return_value = ([_make_article()], False)
+        mock_analyze.return_value = [_make_analyzed()]
+        mock_script.return_value = "script"
+        mock_synth.return_value = "https://example.com/a.mp3"
+        mock_notify.return_value = True
+
+        asyncio.run(run_pipeline(mode="digest", config=_make_config(audio_enabled=True)))
+
+        expected_output_dir = os.path.join("output", str(fixed_today))
+        assert all(call.args[2] == expected_output_dir for call in mock_save.call_args_list)
+        assert mock_script.call_args.args[2] == fixed_today
+        assert mock_synth.await_args.args[1] == fixed_today
+        assert mock_notify.call_args.kwargs["today"] == fixed_today

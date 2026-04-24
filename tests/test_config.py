@@ -1,6 +1,7 @@
-import os
+from datetime import date, datetime, timezone
+from unittest.mock import patch
 
-from src.config import get_config
+from src.config import beijing_today, get_config
 
 
 class TestGetConfig:
@@ -67,3 +68,18 @@ class TestGetConfig:
         config = get_config()
 
         assert config["audio_keep_releases"] == 7
+
+
+class FrozenUtcDateTime(datetime):
+    @classmethod
+    def now(cls, tz=None):
+        current = cls(2026, 2, 15, 23, 30, tzinfo=timezone.utc)
+        if tz is None:
+            return current
+        return current.astimezone(tz)
+
+
+class TestBeijingToday:
+    def test_uses_asia_shanghai_date(self):
+        with patch("src.config.datetime", FrozenUtcDateTime):
+            assert beijing_today() == date(2026, 2, 16)

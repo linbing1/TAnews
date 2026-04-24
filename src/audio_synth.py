@@ -14,6 +14,7 @@ else:
     _EDGE_TTS_IMPORT_ERROR = None
 
 logger = logging.getLogger(__name__)
+_RELEASES_PAGE_SIZE = 100
 
 
 async def _synthesize_mp3(script: str, output_path: str, voice: str) -> None:
@@ -84,26 +85,44 @@ def _create_or_update_release(tag: str, asset_path: str, repo: str, title: str) 
         )
 
 
-def prune_old_releases(tag_prefix: str, keep: int, repo: str) -> None:
-    try:
+def _list_releases(repo: str) -> list[dict]:
+    releases: list[dict] = []
+    page = 1
+
+    while True:
         result = subprocess.run(
             [
                 "gh",
-                "release",
-                "list",
-                "--repo",
-                repo,
-                "--json",
-                "tagName,createdAt",
-                "--limit",
-                "100",
+                "api",
+                f"repos/{repo}/releases?per_page={_RELEASES_PAGE_SIZE}&page={page}",
             ],
             check=True,
             capture_output=True,
             text=True,
         )
-        releases = json.loads(result.stdout)
-    except (subprocess.CalledProcessError, json.JSONDecodeError) as exc:
+        page_releases = json.loads(result.stdout)
+        if not isinstance(page_releases, list):
+            raise ValueError("release API did not return a list")
+
+        releases.extend(
+            {
+                "tagName": release["tag_name"],
+                "createdAt": release["created_at"],
+            }
+            for release in page_releases
+        )
+
+        if len(page_releases) < _RELEASES_PAGE_SIZE:
+            break
+        page += 1
+
+    return releases
+
+
+def prune_old_releases(tag_prefix: str, keep: int, repo: str) -> None:
+    try:
+        releases = _list_releases(repo)
+    except (subprocess.CalledProcessError, json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
         logger.warning("Failed to list releases for pruning: %s", exc)
         return
 

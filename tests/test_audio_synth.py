@@ -1,4 +1,5 @@
 import importlib
+import json
 import sys
 from datetime import date
 import subprocess
@@ -149,9 +150,9 @@ def test_prune_old_releases_deletes_releases_beyond_keep_count():
         args=[],
         returncode=0,
         stdout=(
-            '[{"tagName":"audio-digest-2026-04-23","createdAt":"2026-04-23T00:00:00Z"},'
-            '{"tagName":"audio-digest-2026-04-22","createdAt":"2026-04-22T00:00:00Z"},'
-            '{"tagName":"audio-digest-2026-04-21","createdAt":"2026-04-21T00:00:00Z"}]'
+            '[{"tag_name":"audio-digest-2026-04-23","created_at":"2026-04-23T00:00:00Z"},'
+            '{"tag_name":"audio-digest-2026-04-22","created_at":"2026-04-22T00:00:00Z"},'
+            '{"tag_name":"audio-digest-2026-04-21","created_at":"2026-04-21T00:00:00Z"}]'
         ),
         stderr="",
     )
@@ -163,14 +164,8 @@ def test_prune_old_releases_deletes_releases_beyond_keep_count():
     assert mock_run.call_count == 2
     assert mock_run.call_args_list[0].args[0] == [
         "gh",
-        "release",
-        "list",
-        "--repo",
-        "owner/repo",
-        "--json",
-        "tagName,createdAt",
-        "--limit",
-        "100",
+        "api",
+        "repos/owner/repo/releases?per_page=100&page=1",
     ]
     assert mock_run.call_args_list[1].args[0] == [
         "gh",
@@ -188,7 +183,7 @@ def test_prune_old_releases_keeps_everything_under_limit():
     list_result = subprocess.CompletedProcess(
         args=[],
         returncode=0,
-        stdout='[{"tagName":"audio-digest-2026-04-23","createdAt":"2026-04-23T00:00:00Z"}]',
+        stdout='[{"tag_name":"audio-digest-2026-04-23","created_at":"2026-04-23T00:00:00Z"}]',
         stderr="",
     )
 
@@ -203,9 +198,9 @@ def test_prune_old_releases_ignores_other_prefixes():
         args=[],
         returncode=0,
         stdout=(
-            '[{"tagName":"other-2026-04-24","createdAt":"2026-04-24T00:00:00Z"},'
-            '{"tagName":"audio-digest-2026-04-23","createdAt":"2026-04-23T00:00:00Z"},'
-            '{"tagName":"audio-digest-2026-04-22","createdAt":"2026-04-22T00:00:00Z"}]'
+            '[{"tag_name":"other-2026-04-24","created_at":"2026-04-24T00:00:00Z"},'
+            '{"tag_name":"audio-digest-2026-04-23","created_at":"2026-04-23T00:00:00Z"},'
+            '{"tag_name":"audio-digest-2026-04-22","created_at":"2026-04-22T00:00:00Z"}]'
         ),
         stderr="",
     )
@@ -219,7 +214,7 @@ def test_prune_old_releases_ignores_other_prefixes():
 
 
 def test_prune_old_releases_swallows_list_error_with_warning():
-    error = subprocess.CalledProcessError(1, ["gh", "release", "list"], stderr="boom")
+    error = subprocess.CalledProcessError(1, ["gh", "api"], stderr="boom")
 
     with (
         patch("src.audio_synth.subprocess.run", side_effect=error),
@@ -252,9 +247,9 @@ def test_prune_old_releases_swallows_individual_delete_errors():
         args=[],
         returncode=0,
         stdout=(
-            '[{"tagName":"audio-digest-2026-04-23","createdAt":"2026-04-23T00:00:00Z"},'
-            '{"tagName":"audio-digest-2026-04-22","createdAt":"2026-04-22T00:00:00Z"},'
-            '{"tagName":"audio-digest-2026-04-21","createdAt":"2026-04-21T00:00:00Z"}]'
+            '[{"tag_name":"audio-digest-2026-04-23","created_at":"2026-04-23T00:00:00Z"},'
+            '{"tag_name":"audio-digest-2026-04-22","created_at":"2026-04-22T00:00:00Z"},'
+            '{"tag_name":"audio-digest-2026-04-21","created_at":"2026-04-21T00:00:00Z"}]'
         ),
         stderr="",
     )
@@ -269,6 +264,53 @@ def test_prune_old_releases_swallows_individual_delete_errors():
 
     assert mock_run.call_count == 3
     mock_warning.assert_called_once()
+
+
+def test_prune_old_releases_fetches_multiple_pages_before_pruning():
+    page_1 = subprocess.CompletedProcess(
+        args=[],
+        returncode=0,
+        stdout=json.dumps(
+            [
+                {
+                    "tag_name": f"audio-digest-2026-01-{day:02d}",
+                    "created_at": f"2026-01-{day:02d}T00:00:00Z",
+                }
+                for day in range(1, 101)
+            ]
+        ),
+        stderr="",
+    )
+    page_2 = subprocess.CompletedProcess(
+        args=[],
+        returncode=0,
+        stdout=json.dumps(
+            [
+                {"tag_name": "audio-digest-2025-12-31", "created_at": "2025-12-31T00:00:00Z"},
+                {"tag_name": "audio-digest-2025-12-30", "created_at": "2025-12-30T00:00:00Z"},
+            ]
+        ),
+        stderr="",
+    )
+    delete_result = subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr="")
+
+    with patch(
+        "src.audio_synth.subprocess.run",
+        side_effect=[page_1, page_2, delete_result],
+    ) as mock_run:
+        prune_old_releases("audio-digest", keep=101, repo="owner/repo")
+
+    assert mock_run.call_args_list[0].args[0] == [
+        "gh",
+        "api",
+        "repos/owner/repo/releases?per_page=100&page=1",
+    ]
+    assert mock_run.call_args_list[1].args[0] == [
+        "gh",
+        "api",
+        "repos/owner/repo/releases?per_page=100&page=2",
+    ]
+    assert mock_run.call_args_list[2].args[0][3] == "audio-digest-2025-12-30"
 
 
 @pytest.mark.asyncio

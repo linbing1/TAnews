@@ -52,9 +52,11 @@ def analyze_articles(
 
         try:
             filtered = {k: v for k, v in item.items() if k in _ANALYZED_FIELDS}
+            filtered["link"] = filtered.get("link") or a.link
+            filtered["importance"] = int(filtered["importance"])
             result.append(AnalyzedArticle(**filtered))
-        except TypeError as e:
-            logger.warning("Skipping article with missing field: %s", e)
+        except (TypeError, ValueError, KeyError) as e:
+            logger.warning("Skipping article with invalid analyzed fields: %s", e)
 
     logger.info("Analyzed %d/%d articles successfully", len(result), len(articles))
     return result
