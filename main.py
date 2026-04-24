@@ -1,101 +1,14 @@
 import asyncio
 import logging
-import os
-import sys
-from dataclasses import asdict
-from datetime import date
 
-from src.analyzer import analyze_articles
-from src.audio_scripter import build_audio_script
-from src.audio_synth import synthesize_and_upload
-from src.collector import collect_articles
-from src.config import get_config, save_step
-from src.llm import LLMClient
-from src.notifier import notify
-from src.ranker import rank_articles
-from src.scraper import scrape_full_texts
+from src.config import get_config
+from src.pipeline import run_pipeline
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
-logger = logging.getLogger(__name__)
-
-
-async def run():
-    config = get_config()
-    output_dir = os.path.join("output", str(date.today()))
-
-    # Step 1: Collect articles from listing page
-    logger.info("Step 1: Collecting articles from listing page...")
-    articles = await collect_articles(config["page_url"], config["athletic_cookies"])
-    if not articles:
-        logger.info("No Premier League articles found. Exiting.")
-        return
-
-    logger.info("Found %d articles", len(articles))
-    save_step("step1_collected", [asdict(a) for a in articles], output_dir)
-
-    # Step 2: Rank and select top N
-    llm = LLMClient(
-        base_url=config["llm_base_url"],
-        api_key=config["llm_api_key"],
-        model=config["llm_model"],
-    )
-    logger.info("Step 2: Ranking articles...")
-    top_articles = rank_articles(articles, llm, top_n=config["top_n"])
-    logger.info("Selected top %d articles", len(top_articles))
-    save_step("step2_ranked", [asdict(a) for a in top_articles], output_dir)
-
-    # Step 3: Scrape full texts
-    logger.info("Step 3: Scraping full texts...")
-    top_articles, has_fallbacks = await scrape_full_texts(top_articles, config["athletic_cookies"])
-    save_step("step3_scraped", [
-        {**asdict(a), "full_text": a.full_text[:200] + "..."} for a in top_articles
-    ], output_dir)
-
-    # Step 4: Analyze with LLM
-    logger.info("Step 4: Analyzing articles...")
-    analyzed = analyze_articles(top_articles, llm)
-    save_step("step4_analyzed", [asdict(a) for a in analyzed], output_dir)
-    if not analyzed:
-        logger.error("Analysis failed, no results to push")
-        return
-
-    audio_url: str | None = None
-    if config["audio_enabled"]:
-        try:
-            logger.info("Step 4a: Generating audio script...")
-            script = build_audio_script(analyzed, llm, date.today())
-            save_step("step4a_script", {"script": script}, output_dir)
-
-            logger.info("Step 4b: Synthesizing and uploading audio...")
-            audio_url = await synthesize_and_upload(
-                script,
-                date.today(),
-                voice=config["audio_voice"],
-                tag_prefix="audio-digest",
-                keep=config["audio_keep_releases"],
-            )
-            save_step("step4b_audio", {"url": audio_url}, output_dir)
-        except Exception as e:
-            logger.error("Audio pipeline failed, falling back to text-only: %s", e)
-            audio_url = None
-
-    # Step 5: Push to WeChat
-    logger.info("Step 5: Pushing to WeChat...")
-    success = notify(
-        analyzed,
-        config["serverchan_key"],
-        has_fallbacks=has_fallbacks,
-        audio_url=audio_url,
-    )
-    if success:
-        logger.info("Daily digest sent successfully!")
-    else:
-        logger.error("Failed to send digest")
-        sys.exit(1)
 
 
 if __name__ == "__main__":
-    asyncio.run(run())
+    asyncio.run(run_pipeline(mode="digest", config=get_config()))
