@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import httpx
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 _RETRYABLE = (
     httpx.RemoteProtocolError,
@@ -25,7 +25,7 @@ class LLMClient:
     api_key: str
     model: str
 
-    def _post_chat_once(self, system: str, user: str) -> httpx.Response:
+    def _post_chat_once(self, system: str, user: str, *, timeout: float) -> httpx.Response:
         return httpx.post(
             f"{self.base_url.rstrip('/')}/chat/completions",
             headers={"Authorization": f"Bearer {self.api_key}"},
@@ -36,7 +36,7 @@ class LLMClient:
                     {"role": "user", "content": user},
                 ],
             },
-            timeout=300,
+            timeout=timeout,
         )
 
     def _should_retry(self, exc: Exception) -> bool:
@@ -56,41 +56,47 @@ class LLMClient:
                     pass
         return min(_BASE_RETRY_DELAY * (2 ** (attempt - 1)), _MAX_RETRY_DELAY)
 
-    def complete(self, system: str, user: str, *, operation: str = "llm.complete") -> str:
-        for attempt in range(1, _MAX_RETRIES + 1):
+    def complete(
+        self,
+        system: str,
+        user: str,
+        *,
+        operation: str = "llm.complete",
+        timeout: float = 300,
+        max_retries: int = _MAX_RETRIES,
+    ) -> str:
+        for attempt in range(1, max_retries + 1):
             try:
-                resp = self._post_chat_once(system, user)
-                if resp.status_code >= 400:
-                    log.error("LLM API error %d: %s", resp.status_code, resp.text[:500])
+                resp = self._post_chat_once(system, user, timeout=timeout)
                 resp.raise_for_status()
                 return resp.json()["choices"][0]["message"]["content"]
             except _RETRYABLE as e:
-                if attempt == _MAX_RETRIES:
+                if attempt == max_retries:
                     raise
                 delay = self._retry_delay(attempt)
-                log.warning(
+                logger.warning(
                     "LLM request failed for %s (attempt %d/%d, model=%s, status=-): %s. "
                     "Retrying in %.1fs...",
                     operation,
                     attempt,
-                    _MAX_RETRIES,
+                    max_retries,
                     self.model,
                     e,
                     delay,
                 )
                 time.sleep(delay)
             except httpx.HTTPStatusError as e:
-                if not self._should_retry(e) or attempt == _MAX_RETRIES:
+                if not self._should_retry(e) or attempt == max_retries:
                     raise
                 response = e.response
                 delay = self._retry_delay(attempt, response)
                 status = response.status_code if response is not None else "-"
-                log.warning(
+                logger.warning(
                     "LLM request failed for %s (attempt %d/%d, model=%s, status=%s): %s. "
                     "Retrying in %.1fs...",
                     operation,
                     attempt,
-                    _MAX_RETRIES,
+                    max_retries,
                     self.model,
                     status,
                     e,

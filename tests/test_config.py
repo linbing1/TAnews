@@ -1,14 +1,35 @@
 from datetime import date, datetime, timezone
 from unittest.mock import patch
 
+import pytest
+
 from src.config import beijing_today, get_config
 
 
 class TestGetConfig:
-    def test_audio_defaults(self, monkeypatch):
-        monkeypatch.delenv("AUDIO_ENABLED", raising=False)
-        monkeypatch.delenv("AUDIO_VOICE", raising=False)
-        monkeypatch.delenv("AUDIO_KEEP_RELEASES", raising=False)
+    @pytest.mark.parametrize(
+        ("audio_enabled", "audio_voice", "audio_keep_releases"),
+        [
+            (None, None, None),
+            ("", "", ""),
+        ],
+    )
+    def test_audio_defaults_for_missing_or_empty_values(
+        self,
+        monkeypatch,
+        audio_enabled,
+        audio_voice,
+        audio_keep_releases,
+    ):
+        for name, value in {
+            "AUDIO_ENABLED": audio_enabled,
+            "AUDIO_VOICE": audio_voice,
+            "AUDIO_KEEP_RELEASES": audio_keep_releases,
+        }.items():
+            if value is None:
+                monkeypatch.delenv(name, raising=False)
+            else:
+                monkeypatch.setenv(name, value)
 
         config = get_config()
 
@@ -16,58 +37,41 @@ class TestGetConfig:
         assert config["audio_voice"] == "zh-CN-YunjianNeural"
         assert config["audio_keep_releases"] == 7
 
-    def test_audio_empty_strings_use_defaults(self, monkeypatch):
-        monkeypatch.setenv("AUDIO_ENABLED", "")
-        monkeypatch.setenv("AUDIO_VOICE", "")
-        monkeypatch.setenv("AUDIO_KEEP_RELEASES", "")
-
-        config = get_config()
-
-        assert config["audio_enabled"] is True
-        assert config["audio_voice"] == "zh-CN-YunjianNeural"
-        assert config["audio_keep_releases"] == 7
-
-    def test_audio_enabled_false_lowercase(self, monkeypatch):
-        monkeypatch.setenv("AUDIO_ENABLED", "false")
+    @pytest.mark.parametrize("value", ["false", "FALSE"])
+    def test_audio_enabled_false_values(self, monkeypatch, value):
+        monkeypatch.setenv("AUDIO_ENABLED", value)
 
         config = get_config()
 
         assert config["audio_enabled"] is False
 
-    def test_audio_enabled_false_uppercase(self, monkeypatch):
-        monkeypatch.setenv("AUDIO_ENABLED", "FALSE")
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            ("en-US-GuyNeural", "en-US-GuyNeural"),
+            ("", "zh-CN-YunjianNeural"),
+        ],
+    )
+    def test_audio_voice_values(self, monkeypatch, value, expected):
+        monkeypatch.setenv("AUDIO_VOICE", value)
 
         config = get_config()
 
-        assert config["audio_enabled"] is False
+        assert config["audio_voice"] == expected
 
-    def test_audio_voice_override(self, monkeypatch):
-        monkeypatch.setenv("AUDIO_VOICE", "en-US-GuyNeural")
-
-        config = get_config()
-
-        assert config["audio_voice"] == "en-US-GuyNeural"
-
-    def test_audio_voice_empty_string_uses_default(self, monkeypatch):
-        monkeypatch.setenv("AUDIO_VOICE", "")
-
-        config = get_config()
-
-        assert config["audio_voice"] == "zh-CN-YunjianNeural"
-
-    def test_audio_keep_releases_override(self, monkeypatch):
-        monkeypatch.setenv("AUDIO_KEEP_RELEASES", "14")
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            ("14", 14),
+            ("", 7),
+        ],
+    )
+    def test_audio_keep_releases_values(self, monkeypatch, value, expected):
+        monkeypatch.setenv("AUDIO_KEEP_RELEASES", value)
 
         config = get_config()
 
-        assert config["audio_keep_releases"] == 14
-
-    def test_audio_keep_releases_empty_string_uses_default(self, monkeypatch):
-        monkeypatch.setenv("AUDIO_KEEP_RELEASES", "")
-
-        config = get_config()
-
-        assert config["audio_keep_releases"] == 7
+        assert config["audio_keep_releases"] == expected
 
 
 class FrozenUtcDateTime(datetime):

@@ -33,16 +33,15 @@ def rank_articles(
         for i, a in enumerate(articles)
     )
 
+    logger.debug("Ranker LLM prompt:\n%s", article_list)
     response = llm.complete(
         _SYSTEM_PROMPT.format(top_n=top_n),
         f"Select the top {top_n} from these articles:\n\n{article_list}",
         operation="rank_articles",
     )
-
+    logger.debug("Ranker LLM response: %s", response)
     indices = _parse_indices(response, len(articles), top_n)
     result = [articles[i] for i in indices]
-    logger.debug("Ranker LLM prompt:\n%s", article_list)
-    logger.debug("Ranker LLM response: %s", response)
     for a in result:
         logger.info("  Selected: [%s] %s", a.published.strftime("%Y-%m-%d"), a.title)
     logger.info("Ranked %d articles, selected top %d", len(articles), len(result))

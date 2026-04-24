@@ -29,9 +29,12 @@ class TestBuildAudioScript:
     def test_calls_llm_with_expected_prompt_contract(self):
         llm = MagicMock()
         llm.complete.return_value = "口播稿"
-        article = _make_article()
+        articles = [
+            _make_article(title_cn="阿森纳主导比赛", title_original="Arsenal dominate"),
+            _make_article(title_cn="切尔西扳平", title_original="Chelsea draw"),
+        ]
 
-        build_audio_script([article], llm, date(2026, 4, 23))
+        build_audio_script(articles, llm, date(2026, 4, 23), title_prefix="午间快报")
 
         llm.complete.assert_called_once()
         system_text, user_text = llm.complete.call_args[0]
@@ -41,14 +44,17 @@ class TestBuildAudioScript:
         assert "每篇文章 500-700" in system_text
         assert "保留英文人名" in system_text
         assert "不要使用 Markdown" in system_text
-        assert "title_prefix: 英超早报" in user_text
+        assert "title_prefix: 午间快报" in user_text
         assert "year: 2026" in user_text
         assert "month: 4" in user_text
         assert "day: 23" in user_text
         assert "articles:" in user_text
         assert "- article 1" in user_text
+        assert "- article 2" in user_text
         assert "title_cn: 阿森纳主导比赛" in user_text
         assert "title_original: Arsenal dominate" in user_text
+        assert "title_cn: 切尔西扳平" in user_text
+        assert "title_original: Chelsea draw" in user_text
         assert "article_type: 深度分析" in user_text
         assert "importance: 5" in user_text
         assert "overview: 阿森纳在比赛中展现了统治力。" in user_text
@@ -57,15 +63,6 @@ class TestBuildAudioScript:
         assert "key_people_and_data" not in user_text
         assert "impact" not in user_text
 
-    def test_includes_title_prefix_in_user_prompt(self):
-        llm = MagicMock()
-        llm.complete.return_value = "口播稿"
-
-        build_audio_script([_make_article()], llm, date(2026, 4, 23), title_prefix="午间快报")
-
-        user_text = llm.complete.call_args[0][1]
-        assert "午间快报" in user_text
-
     def test_returns_trimmed_script(self):
         llm = MagicMock()
         llm.complete.return_value = "  口播稿正文\n"
@@ -73,21 +70,3 @@ class TestBuildAudioScript:
         result = build_audio_script([_make_article()], llm, date(2026, 4, 23))
 
         assert result == "口播稿正文"
-
-    def test_includes_all_article_titles(self):
-        llm = MagicMock()
-        llm.complete.return_value = "口播稿"
-        articles = [
-            _make_article(title_cn="阿森纳主导比赛", title_original="Arsenal dominate"),
-            _make_article(title_cn="切尔西扳平", title_original="Chelsea draw"),
-        ]
-
-        build_audio_script(articles, llm, date(2026, 4, 23))
-
-        user_text = llm.complete.call_args[0][1]
-        assert "- article 1" in user_text
-        assert "- article 2" in user_text
-        assert "title_cn: 阿森纳主导比赛" in user_text
-        assert "title_original: Arsenal dominate" in user_text
-        assert "title_cn: 切尔西扳平" in user_text
-        assert "title_original: Chelsea draw" in user_text

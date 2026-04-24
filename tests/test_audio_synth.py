@@ -84,7 +84,12 @@ def test_create_or_update_release_creates_new_release():
         )
 
     assert mock_run.call_count == 1
-    assert mock_run.call_args.kwargs == {"check": True, "capture_output": True, "text": True}
+    assert mock_run.call_args.kwargs == {
+        "check": True,
+        "capture_output": True,
+        "text": True,
+        "timeout": 120,
+    }
     assert mock_run.call_args.args[0] == [
         "gh",
         "release",
@@ -126,6 +131,20 @@ def test_create_or_update_release_uploads_when_release_already_exists():
         "owner/repo",
         "--clobber",
     ]
+    assert mock_run.call_args_list[1].kwargs["timeout"] == 120
+
+
+def test_create_or_update_release_reraises_timeout():
+    error = subprocess.TimeoutExpired(["gh", "release", "create"], timeout=120)
+
+    with patch("src.audio_synth.subprocess.run", side_effect=error):
+        with pytest.raises(subprocess.TimeoutExpired):
+            _create_or_update_release(
+                "audio-digest-2026-04-23",
+                "/tmp/audio-digest-2026-04-23.mp3",
+                "owner/repo",
+                "Audio digest audio-digest-2026-04-23",
+            )
 
 
 def test_create_or_update_release_reraises_unexpected_create_error():
@@ -167,6 +186,7 @@ def test_prune_old_releases_deletes_releases_beyond_keep_count():
         "api",
         "repos/owner/repo/releases?per_page=100&page=1",
     ]
+    assert mock_run.call_args_list[0].kwargs["timeout"] == 120
     assert mock_run.call_args_list[1].args[0] == [
         "gh",
         "release",
@@ -177,6 +197,7 @@ def test_prune_old_releases_deletes_releases_beyond_keep_count():
         "--cleanup-tag",
         "--yes",
     ]
+    assert mock_run.call_args_list[1].kwargs["timeout"] == 120
 
 
 def test_prune_old_releases_keeps_everything_under_limit():
@@ -215,6 +236,18 @@ def test_prune_old_releases_ignores_other_prefixes():
 
 def test_prune_old_releases_swallows_list_error_with_warning():
     error = subprocess.CalledProcessError(1, ["gh", "api"], stderr="boom")
+
+    with (
+        patch("src.audio_synth.subprocess.run", side_effect=error),
+        patch("src.audio_synth.logger.warning") as mock_warning,
+    ):
+        prune_old_releases("audio-digest", keep=2, repo="owner/repo")
+
+    mock_warning.assert_called_once()
+
+
+def test_prune_old_releases_swallows_list_timeout_with_warning():
+    error = subprocess.TimeoutExpired(["gh", "api"], timeout=120)
 
     with (
         patch("src.audio_synth.subprocess.run", side_effect=error),

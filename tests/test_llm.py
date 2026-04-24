@@ -136,3 +136,23 @@ class TestLLMClientComplete:
 
         mock_post.assert_called_once()
         mock_sleep.assert_not_called()
+
+    @patch("src.llm.time.sleep")
+    @patch("src.llm.httpx.post")
+    def test_complete_honors_timeout_and_max_retries_overrides(self, mock_post, mock_sleep):
+        mock_post.side_effect = httpx.ReadTimeout("The read operation timed out")
+
+        client = LLMClient(base_url="https://api.example.com", api_key="k", model="m")
+
+        with pytest.raises(httpx.ReadTimeout):
+            client.complete(
+                "s",
+                "u",
+                operation="rank_articles",
+                timeout=12,
+                max_retries=1,
+            )
+
+        mock_post.assert_called_once()
+        assert mock_post.call_args.kwargs["timeout"] == 12
+        mock_sleep.assert_not_called()

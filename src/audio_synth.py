@@ -15,6 +15,7 @@ else:
 
 logger = logging.getLogger(__name__)
 _RELEASES_PAGE_SIZE = 100
+_GH_TIMEOUT = 120
 
 
 async def _synthesize_mp3(script: str, output_path: str, voice: str) -> None:
@@ -41,10 +42,20 @@ def _build_player_page_url(repo: str, asset_url: str, title: str) -> str:
     return f"{base_url}/audio-player.html?{query}"
 
 
+def _run_gh(args: list[str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        args,
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=_GH_TIMEOUT,
+    )
+
+
 def _create_or_update_release(tag: str, asset_path: str, repo: str, title: str) -> None:
     try:
         logger.info("Creating release %s", tag)
-        subprocess.run(
+        _run_gh(
             [
                 "gh",
                 "release",
@@ -58,9 +69,6 @@ def _create_or_update_release(tag: str, asset_path: str, repo: str, title: str) 
                 "--notes",
                 f"Auto-generated audio digest for {tag}",
             ],
-            check=True,
-            capture_output=True,
-            text=True,
         )
     except subprocess.CalledProcessError as exc:
         stderr = exc.stderr or ""
@@ -68,7 +76,7 @@ def _create_or_update_release(tag: str, asset_path: str, repo: str, title: str) 
             raise
 
         logger.info("Release %s exists; uploading asset with clobber", tag)
-        subprocess.run(
+        _run_gh(
             [
                 "gh",
                 "release",
@@ -79,9 +87,6 @@ def _create_or_update_release(tag: str, asset_path: str, repo: str, title: str) 
                 repo,
                 "--clobber",
             ],
-            check=True,
-            capture_output=True,
-            text=True,
         )
 
 
@@ -90,15 +95,12 @@ def _list_releases(repo: str) -> list[dict]:
     page = 1
 
     while True:
-        result = subprocess.run(
+        result = _run_gh(
             [
                 "gh",
                 "api",
                 f"repos/{repo}/releases?per_page={_RELEASES_PAGE_SIZE}&page={page}",
             ],
-            check=True,
-            capture_output=True,
-            text=True,
         )
         page_releases = json.loads(result.stdout)
         if not isinstance(page_releases, list):
@@ -122,7 +124,14 @@ def _list_releases(repo: str) -> list[dict]:
 def prune_old_releases(tag_prefix: str, keep: int, repo: str) -> None:
     try:
         releases = _list_releases(repo)
-    except (subprocess.CalledProcessError, json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
+    except (
+        subprocess.CalledProcessError,
+        subprocess.TimeoutExpired,
+        json.JSONDecodeError,
+        KeyError,
+        TypeError,
+        ValueError,
+    ) as exc:
         logger.warning("Failed to list releases for pruning: %s", exc)
         return
 
@@ -136,7 +145,7 @@ def prune_old_releases(tag_prefix: str, keep: int, repo: str) -> None:
     for release in matching_releases[keep:]:
         tag = release["tagName"]
         try:
-            subprocess.run(
+            _run_gh(
                 [
                     "gh",
                     "release",
@@ -147,11 +156,8 @@ def prune_old_releases(tag_prefix: str, keep: int, repo: str) -> None:
                     "--cleanup-tag",
                     "--yes",
                 ],
-                check=True,
-                capture_output=True,
-                text=True,
             )
-        except subprocess.CalledProcessError as exc:
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
             logger.warning("Failed to delete old release %s: %s", tag, exc)
 
 

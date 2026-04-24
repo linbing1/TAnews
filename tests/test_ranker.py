@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
+import pytest
+
 from src.models import Article
 from src.ranker import rank_articles
 
@@ -67,3 +69,19 @@ class TestRankArticles:
         assert "2026-02-16" in user_prompt
         # Non-duplicate summary should appear
         assert "Saka scores twice" in user_prompt
+
+    def test_uses_default_llm_retry_behavior(self):
+        mock_llm = MagicMock()
+        mock_llm.complete.return_value = "2,0,4"
+
+        rank_articles(_make_articles(6), mock_llm, top_n=3)
+
+        assert mock_llm.complete.call_args.kwargs == {"operation": "rank_articles"}
+
+    def test_propagates_llm_errors(self):
+        mock_llm = MagicMock()
+        mock_llm.complete.side_effect = TimeoutError("timed out")
+        articles = _make_articles(6)
+
+        with pytest.raises(TimeoutError, match="timed out"):
+            rank_articles(articles, mock_llm, top_n=2)

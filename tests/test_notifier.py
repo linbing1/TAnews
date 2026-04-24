@@ -1,6 +1,8 @@
 from unittest.mock import patch, MagicMock
 from datetime import date
 
+import pytest
+
 from src.models import AnalyzedArticle
 from src.notifier import notify, format_digest
 
@@ -50,10 +52,36 @@ class TestFormatDigest:
         assert "2026-02-16" in title
         assert "英超每日精选" not in title
 
-    def test_no_audio_line_when_audio_url_missing(self):
-        articles = [_make_analyzed()]
-        _, body = format_digest(articles, date(2026, 2, 15), audio_url=None)
-        assert "点击收听音频版" not in body
+    @pytest.mark.parametrize(
+        ("has_fallbacks", "audio_url", "expected_present", "expected_absent"),
+        [
+            (False, None, [], ["点击收听音频版", "Cookie 可能失效"]),
+            (
+                True,
+                "https://example.com/audio.mp3",
+                ["🎧 [点击收听音频版](https://example.com/audio.mp3)", "Cookie 可能失效", "ATHLETIC_COOKIES"],
+                [],
+            ),
+        ],
+    )
+    def test_format_digest_optional_blocks(
+        self,
+        has_fallbacks,
+        audio_url,
+        expected_present,
+        expected_absent,
+    ):
+        _, body = format_digest(
+            [_make_analyzed()],
+            date(2026, 2, 15),
+            has_fallbacks=has_fallbacks,
+            audio_url=audio_url,
+        )
+
+        for text in expected_present:
+            assert text in body
+        for text in expected_absent:
+            assert text not in body
 
     def test_audio_line_appears_below_title_before_first_section(self):
         articles = [_make_analyzed()]
@@ -68,18 +96,6 @@ class TestFormatDigest:
         first_section = "## 1. 阿森纳争冠分析"
 
         assert f"{title_line}\n\n{audio_line}\n\n{first_section}" in body
-
-    def test_audio_line_coexists_with_fallback_warning(self):
-        articles = [_make_analyzed()]
-        _, body = format_digest(
-            articles,
-            date(2026, 2, 15),
-            has_fallbacks=True,
-            audio_url="https://example.com/audio.mp3",
-        )
-
-        assert "🎧 [点击收听音频版](https://example.com/audio.mp3)" in body
-        assert "Cookie 可能失效" in body
 
 
 class TestNotify:
@@ -97,16 +113,3 @@ class TestNotify:
         mock_post.assert_called_once()
         call_data = mock_post.call_args
         assert "test-key" in call_data[0][0]
-
-
-class TestFormatDigestFallbackWarning:
-    def test_no_warning_without_fallbacks(self):
-        articles = [_make_analyzed()]
-        _, body = format_digest(articles, date(2026, 2, 15), has_fallbacks=False)
-        assert "Cookie" not in body
-
-    def test_warning_appended_with_fallbacks(self):
-        articles = [_make_analyzed()]
-        _, body = format_digest(articles, date(2026, 2, 15), has_fallbacks=True)
-        assert "Cookie 可能失效" in body
-        assert "ATHLETIC_COOKIES" in body
