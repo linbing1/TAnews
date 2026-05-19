@@ -31,7 +31,9 @@ _MODE_DEFAULTS = {
 }
 
 
-async def run_pipeline(*, mode: Literal["digest", "hot"], config: dict) -> None:
+async def run_pipeline(
+    *, mode: Literal["digest", "hot"], config: dict, exclude_links: set[str] | None = None
+) -> set[str] | None:
     if mode not in _MODE_DEFAULTS:
         raise ValueError(f"unknown mode: {mode}")
     opts = _MODE_DEFAULTS[mode]
@@ -49,7 +51,16 @@ async def run_pipeline(*, mode: Literal["digest", "hot"], config: dict) -> None:
         )
     if not articles:
         logger.info("No articles found. Exiting.")
-        return
+        return None
+
+    if mode == "hot" and exclude_links:
+        before = len(articles)
+        articles = [a for a in articles if a.link not in exclude_links]
+        logger.info("Excluded %d articles already in digest", before - len(articles))
+
+    if not articles:
+        logger.info("All articles already covered by digest. Exiting.")
+        return None
 
     logger.info("Found %d articles", len(articles))
     save_step("step1_collected", [asdict(a) for a in articles], output_dir)
@@ -60,9 +71,11 @@ async def run_pipeline(*, mode: Literal["digest", "hot"], config: dict) -> None:
         model=config["llm_model"],
     )
 
+    selected_links: set[str] | None = None
     if mode == "digest":
         logger.info("Step 2: Ranking articles...")
         articles = rank_articles(articles, llm, top_n=config["top_n"])
+        selected_links = {a.link for a in articles}
         logger.info("Selected top %d articles", len(articles))
         save_step("step2_ranked", [asdict(a) for a in articles], output_dir)
 
@@ -75,11 +88,11 @@ async def run_pipeline(*, mode: Literal["digest", "hot"], config: dict) -> None:
     )
 
     logger.info("Step 4: Analyzing articles...")
-    analyzed = analyze_articles(articles, llm)
+    analyzed = await analyze_articles(articles, llm)
     save_step("step4_analyzed", [asdict(a) for a in analyzed], output_dir)
     if not analyzed:
         logger.error("Analysis failed, no results to push")
-        return
+        return selected_links
 
     audio_url: str | None = None
     if config["audio_enabled"]:
@@ -114,3 +127,5 @@ async def run_pipeline(*, mode: Literal["digest", "hot"], config: dict) -> None:
     else:
         logger.error("Failed to send pipeline (%s)", mode)
         sys.exit(1)
+
+    return selected_links

@@ -2,28 +2,14 @@ name: Daily Premier League Digest
 
 on:
   schedule:
-    - cron: '0 23 * * *'   # UTC 23:00 = Beijing 07:00
     - cron: '30 23 * * *'  # UTC 23:30 = Beijing 07:30
   workflow_dispatch:
-    inputs:
-      pipeline:
-        description: 'Which pipeline to run'
-        required: true
-        default: 'both'
-        type: choice
-        options:
-          - both
-          - digest
-          - hot
 
 jobs:
-  digest:
+  run:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    if: >-
-      github.event_name == 'schedule' && github.event.schedule == '0 23 * * *'
-      || github.event_name == 'workflow_dispatch' && (github.event.inputs.pipeline == 'both' || github.event.inputs.pipeline == 'digest')
     steps:
       - uses: actions/checkout@v4
 
@@ -50,26 +36,6 @@ jobs:
           LLM_MODEL: ${{ vars.LLM_MODEL }}
           SERVERCHAN_KEY: ${{ secrets.SERVERCHAN_KEY }}
 
-  hot-digest:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    if: >-
-      github.event_name == 'schedule' && github.event.schedule == '30 23 * * *'
-      || github.event_name == 'workflow_dispatch' && (github.event.inputs.pipeline == 'both' || github.event.inputs.pipeline == 'hot')
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Install Playwright browsers
-        run: playwright install --with-deps chromium
-
       - name: Run hot digest pipeline
         run: python main_hot.py
         env:
@@ -82,3 +48,4 @@ jobs:
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           LLM_MODEL: ${{ vars.LLM_MODEL }}
           SERVERCHAN_KEY: ${{ secrets.SERVERCHAN_KEY }}
+          DIGEST_LINKS_FILE: /tmp/digest-links.json

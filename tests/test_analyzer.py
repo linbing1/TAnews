@@ -1,3 +1,4 @@
+import asyncio
 import json
 from datetime import datetime, timezone
 from unittest.mock import MagicMock
@@ -26,7 +27,7 @@ class TestAnalyzeArticles:
             "link": "https://example.com/1",
         }])
         articles = [_make_article()]
-        result = analyze_articles(articles, mock_llm)
+        result = asyncio.run(analyze_articles(articles, mock_llm))
         assert len(result) == 1
         assert result[0].title_cn == "阿森纳主导比赛"
         assert result[0].importance == 5
@@ -37,7 +38,7 @@ class TestAnalyzeArticles:
         mock_llm = MagicMock()
         mock_llm.complete.return_value = "This is not JSON"
         articles = [_make_article()]
-        result = analyze_articles(articles, mock_llm)
+        result = asyncio.run(analyze_articles(articles, mock_llm))
         assert result == []
 
     def test_coerces_string_importance_to_int(self):
@@ -52,7 +53,7 @@ class TestAnalyzeArticles:
             "link": "https://example.com/1",
         }])
 
-        result = analyze_articles([_make_article()], mock_llm)
+        result = asyncio.run(analyze_articles([_make_article()], mock_llm))
 
         assert len(result) == 1
         assert result[0].importance == 5
@@ -70,7 +71,7 @@ class TestAnalyzeArticles:
         }])
         article = _make_article()
 
-        result = analyze_articles([article], mock_llm)
+        result = asyncio.run(analyze_articles([article], mock_llm))
 
         assert len(result) == 1
         assert result[0].link == article.link

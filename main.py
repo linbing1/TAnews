@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 
 from src.config import get_config
@@ -11,4 +12,7 @@ logging.basicConfig(
 
 
 if __name__ == "__main__":
-    asyncio.run(run_pipeline(mode="digest", config=get_config()))
+    selected_links = asyncio.run(run_pipeline(mode="digest", config=get_config()))
+    if selected_links:
+        with open("/tmp/digest-links.json", "w") as f:
+            json.dump(list(selected_links), f)
