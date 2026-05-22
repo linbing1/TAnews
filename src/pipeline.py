@@ -47,16 +47,9 @@ async def run_pipeline(
         articles = await collect_articles(config["page_url"], config["athletic_cookies"])
     else:
         articles = await collect_hot_articles(
-            config["page_url"], config["athletic_cookies"], top_n=config["top_n"]
+            config["page_url"], config["athletic_cookies"], top_n=config["top_n"],
+            exclude_links=exclude_links,
         )
-    if not articles:
-        logger.info("No articles found. Exiting.")
-        return None
-
-    if mode == "hot" and exclude_links:
-        before = len(articles)
-        articles = [a for a in articles if a.link not in exclude_links]
-        logger.info("Excluded %d articles already in digest", before - len(articles))
 
     if not articles:
         logger.info("All articles already covered by digest. Exiting.")

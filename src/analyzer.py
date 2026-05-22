@@ -18,11 +18,11 @@ def _parse_response(response: str) -> dict | None:
     text = response.strip()
     if text.startswith("```"):
         text = text.split("\n", 1)[1]
-        text = text.rsplit("```", 1)[0]
+        text = text.rsplit("```", 1)[0].strip()
     try:
         return json.loads(text)
-    except (json.JSONDecodeError, IndexError):
-        logger.error("Failed to parse LLM response as JSON: %s", response[:200])
+    except json.JSONDecodeError:
+        logger.error("Failed to parse LLM response as JSON:\n%s", response)
         return None
 
 
