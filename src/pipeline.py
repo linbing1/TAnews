@@ -24,7 +24,7 @@ _MODE_DEFAULTS = {
         "output_subdir": None,
     },
     "hot": {
-        "title_prefix": "英超热议文章",
+        "title_prefix": "英超每日热议",
         "tag_prefix": "audio-hot",
         "output_subdir": "hot",
     },
