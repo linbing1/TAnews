@@ -25,17 +25,27 @@ class LLMClient:
     api_key: str
     model: str
 
-    def _post_chat_once(self, system: str, user: str, *, timeout: float) -> httpx.Response:
+    def _post_chat_once(
+        self,
+        system: str,
+        user: str,
+        *,
+        timeout: float,
+        response_format: dict | None = None,
+    ) -> httpx.Response:
+        payload: dict = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+        }
+        if response_format is not None:
+            payload["response_format"] = response_format
         return httpx.post(
             f"{self.base_url.rstrip('/')}/chat/completions",
             headers={"Authorization": f"Bearer {self.api_key}"},
-            json={
-                "model": self.model,
-                "messages": [
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user},
-                ],
-            },
+            json=payload,
             timeout=timeout,
         )
 
@@ -64,10 +74,13 @@ class LLMClient:
         operation: str = "llm.complete",
         timeout: float = 300,
         max_retries: int = _MAX_RETRIES,
+        response_format: dict | None = None,
     ) -> str:
         for attempt in range(1, max_retries + 1):
             try:
-                resp = self._post_chat_once(system, user, timeout=timeout)
+                resp = self._post_chat_once(
+                    system, user, timeout=timeout, response_format=response_format
+                )
                 resp.raise_for_status()
                 return resp.json()["choices"][0]["message"]["content"]
             except _RETRYABLE as e:

@@ -14,6 +14,10 @@ _ANALYZED_FIELDS = {f.name for f in fields(AnalyzedArticle)}
 _SYSTEM_PROMPT = (Path(__file__).parent / "prompts" / "analyzer.md").read_text(encoding="utf-8")
 
 
+_JSON_RESPONSE_FORMAT = {"type": "json_object"}
+_PARSE_RETRIES = 2
+
+
 def _parse_response(response: str) -> dict | None:
     text = response.strip()
     if text.startswith("```"):
@@ -22,7 +26,6 @@ def _parse_response(response: str) -> dict | None:
     try:
         return json.loads(text)
     except json.JSONDecodeError:
-        logger.error("Failed to parse LLM response as JSON:\n%s", response)
         return None
 
 
@@ -30,14 +33,39 @@ async def _analyze_one(i: int, total: int, a: Article, llm: LLMClient) -> Analyz
     user_text = f"Title: {a.title}\nLink: {a.link}\nContent:\n{a.full_text}"
     logger.info("Analyzing article %d/%d: %s (%d chars)", i, total, a.title, len(user_text))
 
-    try:
-        response = await asyncio.to_thread(llm.complete, _SYSTEM_PROMPT, user_text, operation="analyze_articles")
-    except Exception:
-        logger.exception("LLM request failed for article: %s", a.title)
-        return None
+    item = None
+    last_response: str | None = None
+    for attempt in range(1, _PARSE_RETRIES + 1):
+        try:
+            response = await asyncio.to_thread(
+                llm.complete,
+                _SYSTEM_PROMPT,
+                user_text,
+                operation="analyze_articles",
+                response_format=_JSON_RESPONSE_FORMAT,
+            )
+        except Exception:
+            logger.exception("LLM request failed for article: %s", a.title)
+            return None
 
-    item = _parse_response(response)
+        last_response = response
+        item = _parse_response(response)
+        if item is not None:
+            break
+        logger.warning(
+            "Failed to parse LLM JSON for %s (attempt %d/%d)",
+            a.title,
+            attempt,
+            _PARSE_RETRIES,
+        )
+
     if item is None:
+        logger.error(
+            "Giving up on article after %d parse failures: %s\nLast response:\n%s",
+            _PARSE_RETRIES,
+            a.title,
+            last_response,
+        )
         return None
 
     if isinstance(item, list):
