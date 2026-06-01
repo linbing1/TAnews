@@ -25,6 +25,8 @@ def _strip_markdown(text: str) -> str:
     text = re.sub(r"`([^`]+)`", r"\1", text)                # inline code
     text = re.sub(r"#{1,6}\s+", "", text)                   # headings
     text = re.sub(r"^\s*[-*+]\s+", "", text, flags=re.MULTILINE)  # list bullets
+    # Drop interpuncts inside transliterated names — TTS otherwise pauses there.
+    text = re.sub(r"(?<=[一-鿿])[·•・](?=[一-鿿])", "", text)
     return text
 
 
