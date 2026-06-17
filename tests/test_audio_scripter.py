@@ -42,7 +42,9 @@ class TestBuildAudioScript:
         assert "转场" in system_text
         assert "结尾" in system_text
         assert "每篇文章 500-700" in system_text
-        assert "保留英文人名" in system_text
+        assert "通用中文译名" in system_text
+        assert "冷门人名/球队若确实没有通用中文译名再保留英文" in system_text
+        assert "不要使用间隔号" in system_text
         assert "不要使用 Markdown" in system_text
         assert "title_prefix: 午间快报" in user_text
         assert "year: 2026" in user_text

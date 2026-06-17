@@ -73,6 +73,24 @@ class TestGetConfig:
 
         assert config["audio_keep_releases"] == expected
 
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            (None, "https://www.nytimes.com/athletic/football/world-cup/"),
+            ("", "https://www.nytimes.com/athletic/football/world-cup/"),
+            ("https://example.com/world-cup/", "https://example.com/world-cup/"),
+        ],
+    )
+    def test_world_cup_page_url_values(self, monkeypatch, value, expected):
+        if value is None:
+            monkeypatch.delenv("WORLD_CUP_PAGE_URL", raising=False)
+        else:
+            monkeypatch.setenv("WORLD_CUP_PAGE_URL", value)
+
+        config = get_config()
+
+        assert config["world_cup_page_url"] == expected
+
 
 class FrozenUtcDateTime(datetime):
     @classmethod

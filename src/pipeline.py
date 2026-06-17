@@ -28,11 +28,16 @@ _MODE_DEFAULTS = {
         "tag_prefix": "audio-hot",
         "output_subdir": "hot",
     },
+    "world_cup": {
+        "title_prefix": "世界杯每日精选",
+        "tag_prefix": "audio-world-cup",
+        "output_subdir": "world-cup",
+    },
 }
 
 
 async def run_pipeline(
-    *, mode: Literal["digest", "hot"], config: dict, exclude_links: set[str] | None = None
+    *, mode: Literal["digest", "hot", "world_cup"], config: dict, exclude_links: set[str] | None = None
 ) -> set[str] | None:
     if mode not in _MODE_DEFAULTS:
         raise ValueError(f"unknown mode: {mode}")
@@ -45,6 +50,12 @@ async def run_pipeline(
     logger.info("Step 1: Collecting articles (mode=%s)...", mode)
     if mode == "digest":
         articles = await collect_articles(config["page_url"], config["athletic_cookies"])
+    elif mode == "world_cup":
+        articles = await collect_articles(
+            config["world_cup_page_url"],
+            config["athletic_cookies"],
+            article_filter=None,
+        )
     else:
         articles = await collect_hot_articles(
             config["page_url"], config["athletic_cookies"], top_n=config["top_n"],
@@ -65,7 +76,7 @@ async def run_pipeline(
     )
 
     selected_links: set[str] | None = None
-    if mode == "digest":
+    if mode in ("digest", "world_cup"):
         logger.info("Step 2: Ranking articles...")
         articles = rank_articles(articles, llm, top_n=config["top_n"])
         selected_links = {a.link for a in articles}

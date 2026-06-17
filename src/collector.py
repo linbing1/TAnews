@@ -1,6 +1,7 @@
 import logging
 import re
 from datetime import datetime, timezone
+from collections.abc import Callable
 
 from playwright.async_api import async_playwright
 
@@ -30,7 +31,10 @@ def _parse_date_from_url(url: str) -> datetime | None:
     return datetime(y, mo, d, tzinfo=timezone.utc)
 
 
-def _is_premier_league(text: str) -> bool:
+ArticleFilter = Callable[[str], bool]
+
+
+def is_premier_league_article(text: str) -> bool:
     lower = text.lower()
     return any(kw in lower for kw in _PL_KEYWORDS)
 
@@ -62,9 +66,12 @@ async def _extract_comment_count(link) -> int:
 
 
 async def collect_articles(
-    page_url: str, cookies: list[dict]
+    page_url: str,
+    cookies: list[dict],
+    *,
+    article_filter: ArticleFilter | None = is_premier_league_article,
 ) -> list[Article]:
-    """Scrape the Athletic PL listing page for article titles and links."""
+    """Scrape an Athletic listing page for article titles and links."""
     pw_cookies = convert_cookies(cookies)
 
     async with async_playwright() as p:
@@ -97,7 +104,7 @@ async def collect_articles(
             if not title or len(title) < 10:
                 continue
 
-            if not _is_premier_league(title):
+            if article_filter and not article_filter(title):
                 continue
 
             pub_date = _parse_date_from_url(href) or datetime.now(timezone.utc)
@@ -121,5 +128,5 @@ async def collect_articles(
 
         await browser.close()
 
-    logger.info("Collected %d Premier League articles from listing page", len(articles))
+    logger.info("Collected %d articles from listing page", len(articles))
     return articles

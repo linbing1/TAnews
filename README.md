@@ -2,9 +2,10 @@
 
 Scrapes The Athletic Premier League articles, runs LLM analysis in Chinese, and pushes a daily digest to WeChat via Server酱. Optionally generates an audio broadcast via Edge-TTS.
 
-Two pipelines:
-- **Digest** (`main.py`, 07:00 Beijing): LLM selects top-N articles → analyze → push
+Pipelines:
+- **Digest** (`main.py`, 07:30 Beijing): LLM selects top-N articles → analyze → push
 - **Hot** (`main_hot.py`, 07:30 Beijing): sort by comment count → analyze → push
+- **World Cup** (`main_world_cup.py`, 12:00 Beijing): LLM selects top-N World Cup articles → analyze → push
 
 ## Setup
 
@@ -21,9 +22,10 @@ playwright install --with-deps chromium
 | `ATHLETIC_COOKIES` | Yes | — | Cookie-Editor JSON export |
 | `LLM_API_KEY` | Yes | — | LLM API key |
 | `SERVERCHAN_KEY` | Yes | — | Server酱 SendKey |
-| `LLM_BASE_URL` | No | `https://api.deepseek.com/v1` | LLM endpoint |
+| `LLM_BASE_URL` | No | `https://open.bigmodel.cn/api/coding/paas/v4` | LLM endpoint |
 | `LLM_MODEL` | No | `deepseek-chat` | Model name |
 | `TOP_N` | No | `5` | Articles to select |
+| `WORLD_CUP_PAGE_URL` | No | `https://www.nytimes.com/athletic/football/world-cup/` | World Cup page URL |
 | `AUDIO_ENABLED` | No | `true` | Toggle audio generation |
 | `AUDIO_VOICE` | No | `zh-CN-YunjianNeural` | Edge-TTS voice |
 | `AUDIO_KEEP_RELEASES` | No | `7` | GitHub Releases to retain |
