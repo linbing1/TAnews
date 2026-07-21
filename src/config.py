@@ -25,9 +25,6 @@ def get_config():
         "page_url": _get_env_or_default(
             "PAGE_URL", "https://www.nytimes.com/athletic/football/premier-league/"
         ),
-        "world_cup_page_url": _get_env_or_default(
-            "WORLD_CUP_PAGE_URL", "https://www.nytimes.com/athletic/football/world-cup/"
-        ),
         "athletic_cookies": cookies,
         "llm_base_url": _get_env_or_default("LLM_BASE_URL", "https://open.bigmodel.cn/api/coding/paas/v4"),
         "llm_api_key": os.environ.get("LLM_API_KEY", ""),

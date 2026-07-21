@@ -9,15 +9,25 @@ logger = logging.getLogger(__name__)
 async def collect_hot_articles(
     page_url: str, cookies: list[dict], top_n: int = 5, exclude_links: set[str] | None = None
 ) -> list[Article]:
-    """Collect articles and return top N sorted by comment count, excluding given links."""
+    """Return the most discussed articles, preferring links not used by the digest."""
     articles = await collect_articles(page_url, cookies)
 
     articles.sort(key=lambda a: a.comment_count, reverse=True)
-    if exclude_links:
-        before = len(articles)
-        articles = [a for a in articles if a.link not in exclude_links]
-        logger.info("Excluded %d articles already in digest", before - len(articles))
     result = articles[:top_n]
+    if exclude_links:
+        fresh = [a for a in articles if a.link not in exclude_links]
+        repeated = [a for a in articles if a.link in exclude_links]
+        result = fresh[:top_n]
+        logger.info("Excluded %d articles already in digest", len(repeated))
+
+        if len(result) < top_n:
+            backfill = repeated[:top_n - len(result)]
+            result.extend(backfill)
+            if backfill:
+                logger.info(
+                    "Backfilled %d digest articles to reach requested count",
+                    len(backfill),
+                )
 
     logger.info("Top %d by comments:", len(result))
     for a in result:

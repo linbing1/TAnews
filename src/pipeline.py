@@ -28,16 +28,11 @@ _MODE_DEFAULTS = {
         "tag_prefix": "audio-hot",
         "output_subdir": "hot",
     },
-    "world_cup": {
-        "title_prefix": "世界杯每日精选",
-        "tag_prefix": "audio-world-cup",
-        "output_subdir": "world-cup",
-    },
 }
 
 
 async def run_pipeline(
-    *, mode: Literal["digest", "hot", "world_cup"], config: dict, exclude_links: set[str] | None = None
+    *, mode: Literal["digest", "hot"], config: dict, exclude_links: set[str] | None = None
 ) -> set[str] | None:
     if mode not in _MODE_DEFAULTS:
         raise ValueError(f"unknown mode: {mode}")
@@ -50,12 +45,6 @@ async def run_pipeline(
     logger.info("Step 1: Collecting articles (mode=%s)...", mode)
     if mode == "digest":
         articles = await collect_articles(config["page_url"], config["athletic_cookies"])
-    elif mode == "world_cup":
-        articles = await collect_articles(
-            config["world_cup_page_url"],
-            config["athletic_cookies"],
-            article_filter=None,
-        )
     else:
         articles = await collect_hot_articles(
             config["page_url"], config["athletic_cookies"], top_n=config["top_n"],
@@ -75,11 +64,9 @@ async def run_pipeline(
         model=config["llm_model"],
     )
 
-    selected_links: set[str] | None = None
-    if mode in ("digest", "world_cup"):
+    if mode == "digest":
         logger.info("Step 2: Ranking articles...")
         articles = rank_articles(articles, llm, top_n=config["top_n"])
-        selected_links = {a.link for a in articles}
         logger.info("Selected top %d articles", len(articles))
         save_step("step2_ranked", [asdict(a) for a in articles], output_dir)
 
@@ -96,7 +83,7 @@ async def run_pipeline(
     save_step("step4_analyzed", [asdict(a) for a in analyzed], output_dir)
     if not analyzed:
         logger.error("Analysis failed, no results to push")
-        return selected_links
+        return set() if mode == "digest" else None
 
     audio_url: str | None = None
     if config["audio_enabled"]:
@@ -132,4 +119,4 @@ async def run_pipeline(
         logger.error("Failed to send pipeline (%s)", mode)
         sys.exit(1)
 
-    return selected_links
+    return {article.link for article in analyzed} if mode == "digest" else None

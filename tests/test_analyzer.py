@@ -41,6 +41,25 @@ class TestAnalyzeArticles:
         result = asyncio.run(analyze_articles(articles, mock_llm))
         assert result == []
 
+    def test_repairs_literal_newlines_inside_json_strings(self):
+        mock_llm = MagicMock()
+        mock_llm.complete.return_value = """{
+  "title_cn": "阿森纳主导比赛",
+  "title_original": "Arsenal dominate",
+  "article_type": "深度分析",
+  "importance": 5,
+  "overview": "阿森纳在比赛中展现了统治力。",
+  "detail": "**开局：** 第一段。
+
+**调整：** 第二段。",
+  "link": "https://example.com/1"
+}"""
+
+        result = asyncio.run(analyze_articles([_make_article()], mock_llm))
+
+        assert len(result) == 1
+        assert result[0].detail == "**开局：** 第一段。\n\n**调整：** 第二段。"
+
     def test_coerces_string_importance_to_int(self):
         mock_llm = MagicMock()
         mock_llm.complete.return_value = json.dumps([{

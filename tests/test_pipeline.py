@@ -9,7 +9,6 @@ from src.models import Article, AnalyzedArticle
 def _make_config(audio_enabled: bool = False) -> dict:
     return {
         "page_url": "http://page",
-        "world_cup_page_url": "http://world-cup",
         "athletic_cookies": [],
         "llm_base_url": "https://api.example.com",
         "llm_api_key": "key",
@@ -101,93 +100,6 @@ class TestRunPipelineHot:
         mock_scrape.assert_awaited_once()
         mock_analyze.assert_called_once()
         assert mock_notify.call_args.kwargs["title_prefix"] == "英超每日热议"
-
-
-class TestRunPipelineWorldCup:
-    @patch("src.pipeline.save_step")
-    @patch("src.pipeline.notify")
-    @patch("src.pipeline.analyze_articles", new_callable=AsyncMock)
-    @patch("src.pipeline.scrape_full_texts", new_callable=AsyncMock)
-    @patch("src.pipeline.rank_articles")
-    @patch("src.pipeline.collect_articles", new_callable=AsyncMock)
-    def test_full_world_cup_pipeline_uses_world_cup_page_and_rank(
-        self, mock_collect, mock_rank, mock_scrape, mock_analyze, mock_notify, mock_save
-    ):
-        from src.pipeline import run_pipeline
-
-        mock_collect.return_value = [_make_article()]
-        mock_rank.return_value = [_make_article()]
-        mock_scrape.return_value = ([_make_article()], False)
-        mock_analyze.return_value = [_make_analyzed()]
-        mock_notify.return_value = True
-
-        asyncio.run(run_pipeline(mode="world_cup", config=_make_config()))
-
-        mock_collect.assert_awaited_once_with("http://world-cup", [], article_filter=None)
-        mock_rank.assert_called_once()
-        mock_scrape.assert_awaited_once()
-        mock_analyze.assert_called_once()
-        mock_notify.assert_called_once()
-        assert mock_notify.call_args.kwargs["title_prefix"] == "世界杯每日精选"
-
-    @patch("src.pipeline.beijing_today")
-    @patch("src.pipeline.save_step")
-    @patch("src.pipeline.notify")
-    @patch("src.pipeline.analyze_articles", new_callable=AsyncMock)
-    @patch("src.pipeline.scrape_full_texts", new_callable=AsyncMock)
-    @patch("src.pipeline.rank_articles")
-    @patch("src.pipeline.collect_articles", new_callable=AsyncMock)
-    def test_world_cup_uses_isolated_output_dir(
-        self,
-        mock_collect,
-        mock_rank,
-        mock_scrape,
-        mock_analyze,
-        mock_notify,
-        mock_save,
-        mock_beijing_today,
-    ):
-        from src.pipeline import run_pipeline
-
-        fixed_today = date(2026, 6, 17)
-        mock_beijing_today.return_value = fixed_today
-        mock_collect.return_value = [_make_article()]
-        mock_rank.return_value = [_make_article()]
-        mock_scrape.return_value = ([_make_article()], False)
-        mock_analyze.return_value = [_make_analyzed()]
-        mock_notify.return_value = True
-
-        asyncio.run(run_pipeline(mode="world_cup", config=_make_config()))
-
-        expected_output_dir = os.path.join("output", "world-cup", str(fixed_today))
-        assert all(call.args[2] == expected_output_dir for call in mock_save.call_args_list)
-
-    @patch("src.pipeline.save_step")
-    @patch("src.pipeline.notify")
-    @patch("src.pipeline.synthesize_and_upload", new_callable=AsyncMock)
-    @patch("src.pipeline.build_audio_script")
-    @patch("src.pipeline.analyze_articles", new_callable=AsyncMock)
-    @patch("src.pipeline.scrape_full_texts", new_callable=AsyncMock)
-    @patch("src.pipeline.rank_articles")
-    @patch("src.pipeline.collect_articles", new_callable=AsyncMock)
-    def test_world_cup_audio_uses_world_cup_tag(
-        self, mock_collect, mock_rank, mock_scrape, mock_analyze,
-        mock_script, mock_synth, mock_notify, mock_save,
-    ):
-        from src.pipeline import run_pipeline
-
-        mock_collect.return_value = [_make_article()]
-        mock_rank.return_value = [_make_article()]
-        mock_scrape.return_value = ([_make_article()], False)
-        mock_analyze.return_value = [_make_analyzed()]
-        mock_script.return_value = "script"
-        mock_synth.return_value = "https://example.com/a.mp3"
-        mock_notify.return_value = True
-
-        asyncio.run(run_pipeline(mode="world_cup", config=_make_config(audio_enabled=True)))
-
-        assert mock_synth.await_args.kwargs["tag_prefix"] == "audio-world-cup"
-        assert mock_script.call_args.kwargs["title_prefix"] == "世界杯每日精选"
 
 
 class TestRunPipelineAudio:

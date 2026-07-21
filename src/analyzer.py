@@ -18,7 +18,40 @@ _JSON_RESPONSE_FORMAT = {"type": "json_object"}
 _PARSE_RETRIES = 2
 
 
-def _parse_response(response: str) -> dict | None:
+def _escape_control_chars_in_strings(text: str) -> str:
+    repaired: list[str] = []
+    in_string = False
+    escaped = False
+
+    for char in text:
+        if not in_string:
+            repaired.append(char)
+            if char == '"':
+                in_string = True
+            continue
+
+        if escaped:
+            repaired.append(char)
+            escaped = False
+        elif char == "\\":
+            repaired.append(char)
+            escaped = True
+        elif char == '"':
+            repaired.append(char)
+            in_string = False
+        elif char == "\n":
+            repaired.append("\\n")
+        elif char == "\r":
+            repaired.append("\\r")
+        elif char == "\t":
+            repaired.append("\\t")
+        else:
+            repaired.append(char)
+
+    return "".join(repaired)
+
+
+def _parse_response(response: str) -> dict | list | None:
     text = response.strip()
     if text.startswith("```"):
         text = text.split("\n", 1)[1]
@@ -26,7 +59,10 @@ def _parse_response(response: str) -> dict | None:
     try:
         return json.loads(text)
     except json.JSONDecodeError:
-        return None
+        try:
+            return json.loads(_escape_control_chars_in_strings(text))
+        except json.JSONDecodeError:
+            return None
 
 
 async def _analyze_one(i: int, total: int, a: Article, llm: LLMClient) -> AnalyzedArticle | None:

@@ -1,7 +1,7 @@
 import logging
 import re
-from datetime import datetime, timezone
 from collections.abc import Callable
+from datetime import datetime, timezone
 
 from playwright.async_api import async_playwright
 
@@ -20,6 +20,11 @@ _PL_KEYWORDS = [
     "salah", "haaland", "saka", "palmer", "son",
 ]
 
+_PL_KEYWORD_PATTERNS = [
+    re.compile(rf"(?<!\w){re.escape(keyword)}(?!\w)", re.IGNORECASE)
+    for keyword in _PL_KEYWORDS
+]
+
 _ARTICLE_URL_PATTERN = re.compile(r"/athletic/\d+/(\d{4})/(\d{2})/(\d{2})/")
 
 
@@ -35,8 +40,7 @@ ArticleFilter = Callable[[str], bool]
 
 
 def is_premier_league_article(text: str) -> bool:
-    lower = text.lower()
-    return any(kw in lower for kw in _PL_KEYWORDS)
+    return any(pattern.search(text) for pattern in _PL_KEYWORD_PATTERNS)
 
 
 async def _extract_summary(link, title: str) -> str:

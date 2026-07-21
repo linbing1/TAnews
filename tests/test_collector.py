@@ -47,6 +47,10 @@ class TestIsPremierLeague:
         assert is_premier_league_article("NBA Playoffs recap") is False
         assert is_premier_league_article("Winter Olympics day 9") is False
 
+    def test_matches_keywords_as_whole_words(self):
+        assert is_premier_league_article("Tottenham star Son scores twice") is True
+        assert is_premier_league_article("The key reason Spain won") is False
+
 
 class TestParseDateFromUrl:
     def test_extracts_date(self):
@@ -97,15 +101,15 @@ class TestCollectArticles:
         mock_page = _setup_playwright_page(mock_pw)
         mock_page.query_selector_all.return_value = [
             _make_link(
-                "/athletic/123/2026/06/17/world-cup-draw/",
-                "World Cup draw leaves Brazil and Japan in same group",
+                "/athletic/123/2026/06/17/champions-league-draw/",
+                "Champions League draw leaves Madrid and Milan together",
             )
         ]
 
         articles = await collect_articles("http://fake-url", cookies=[], article_filter=None)
 
         assert len(articles) == 1
-        assert articles[0].title == "World Cup draw leaves Brazil and Japan in same group"
+        assert articles[0].title == "Champions League draw leaves Madrid and Milan together"
 
     @pytest.mark.asyncio
     @patch("src.collector.async_playwright")

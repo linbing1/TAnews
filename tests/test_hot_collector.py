@@ -41,3 +41,26 @@ class TestCollectHotArticles:
 
         articles = await collect_hot_articles("http://fake", cookies=[], top_n=5)
         assert articles == []
+
+    @pytest.mark.asyncio
+    @patch("src.hot_collector.collect_articles")
+    async def test_backfills_digest_links_when_unique_articles_are_insufficient(
+        self, mock_collect
+    ):
+        repeated_high = _make_article("Arsenal win big", 100)
+        repeated_low = _make_article("Liverpool draw", 50)
+        fresh = _make_article("Chelsea transfer update", 10)
+        mock_collect.return_value = [repeated_high, repeated_low, fresh]
+
+        articles = await collect_hot_articles(
+            "http://fake",
+            cookies=[],
+            top_n=3,
+            exclude_links={repeated_high.link, repeated_low.link},
+        )
+
+        assert [article.title for article in articles] == [
+            "Chelsea transfer update",
+            "Arsenal win big",
+            "Liverpool draw",
+        ]
