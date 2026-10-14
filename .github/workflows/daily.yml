@@ -1,8 +1,10 @@
 name: Daily Premier League Digest
 
 on:
-  schedule:
-    - cron: '30 23 * * *'  # UTC 23:30 = Beijing 07:30
+  # PAUSED: daily WeChat digest/hot push is off.
+  # Resume by uncommenting the schedule block below and merging.
+  # schedule:
+  #   - cron: '30 23 * * *'  # UTC 23:30 = Beijing 07:30
   workflow_dispatch:
 
 jobs:
